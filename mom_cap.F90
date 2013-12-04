@@ -254,22 +254,24 @@ module mom_cap_mod
 
     ! create a Grid object for Fields
     ! we are going to create a single tile tripolar grid from a gridspec
-    ! file. For now, a simple decomposition is used. 
-    !gridIn = ESMF_GridCreate('ocean_hgrid.nc', ESMF_FILEFORMAT_GRIDSPEC, &
-    !    (/1, npet/), isSphere=.true., coordNames=(/'x', 'y'/), rc=rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
-
-    gridIn = NUOPC_GridCreateSimpleXY( &
-      0._ESMF_KIND_R8, 5.75_ESMF_KIND_R8, &
-      -1.5_ESMF_KIND_R8, 2.0_ESMF_KIND_R8, &
-      100, 100, rc=rc)
+    ! file. We also use the exact decomposition in MOM5 so that the Fields
+    ! created can wrap on the data pointers in internal part of MOM5
+    gridIn = ESMF_GridCreate('grid_spec.nc', ESMF_FILEFORMAT_GRIDSPEC, &
+        (/6, 4/), isSphere=.true., coordNames=(/'gridlon_t', 'gridlat_t'/), &
+        addCornerStagger=.true., rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+
+    !gridIn = NUOPC_GridCreateSimpleXY( &
+    !  0._ESMF_KIND_R8, 5.75_ESMF_KIND_R8, &
+    !  -1.5_ESMF_KIND_R8, 2.0_ESMF_KIND_R8, &
+    !  100, 100, rc=rc)
+    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    !  line=__LINE__, &
+    !  file=__FILE__)) &
+    !  return  ! bail out
 
     gridOut = gridIn ! for now out same as in
 
