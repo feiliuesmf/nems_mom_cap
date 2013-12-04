@@ -275,12 +275,12 @@ module mom_cap_mod
 
     gridOut = gridIn ! for now out same as in
 
-    call MOM5_RealizeImportFields(importState, gridIn, rc)
+    call MOM5_RealizeImportFields(importState, gridIn, ice_ocean_boundary, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call MOM5_RealizeExportFields(exportState, gridOut, rc)
+    call MOM5_RealizeExportFields(exportState, gridOut, Ocean_sfc, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -592,101 +592,41 @@ module mom_cap_mod
   return
   end subroutine external_coupler_mpi_exit
 !-----------------------------------------------------------------------------------------
-  subroutine MOM5_RealizeImportFields(importState, gridIn, rc)
+  subroutine MOM5_RealizeImportFields(importState, gridIn, Ice_ocean_boundary, rc)
 
     type(ESMF_State), intent(inout)             :: importState
     type(ESMF_Grid), intent(in)                 :: gridIn
+    type(ice_ocean_boundary_type), intent(in)   :: Ice_ocean_boundary
     integer, intent(inout)                      :: rc
 
     type(ESMF_Field)                            :: field
     
     rc = ESMF_SUCCESS
 
-
-    ! importable field: Agrid_eastward_stress_on_skin
-    if(.not. NUOPC_FieldDictionaryHasEntry('TAUX', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='TAUX', &
-        canonicalUnits='N m-2', &
-        defaultLongName='Agrid_eastward_stress_on_skin', &
-        defaultShortName='TAUX', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="TAUX", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(importState, standardName='TAUX', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: Agrid_northward_stress_on_skin
-    if(.not. NUOPC_FieldDictionaryHasEntry('TAUY', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='TAUY', &
-        canonicalUnits='N m-2', &
-        defaultLongName='Agrid_northward_stress_on_skin', &
-        defaultShortName='TAUY', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="TAUY", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(importState, standardName='TAUY', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: Surface Atmospheric Pressure
-    if(.not. NUOPC_FieldDictionaryHasEntry('PS', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='PS', &
+    ! importable field: i-directed wind stress into ocean
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: 
+    if(.not. NUOPC_FieldDictionaryHasEntry('u_flux', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='u_flux', &
         canonicalUnits='Pa', &
-        defaultLongName='Surface Atmospheric Pressure', &
-        defaultShortName='PS', rc=rc)
+        defaultLongName='i-directed wind stress into ocean', &
+        defaultShortName='u_flux', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="PS", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%u_flux, &
+      name="u_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='PS', &
+    call NUOPC_StateAdvertiseField(importState, standardName='u_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -699,26 +639,30 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    ! importable field: pressure due to ice weight
-    if(.not. NUOPC_FieldDictionaryHasEntry('PICE', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='PICE', &
+    ! importable field: j-directed wind stress into ocean
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: 
+    if(.not. NUOPC_FieldDictionaryHasEntry('v_flux', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='v_flux', &
         canonicalUnits='Pa', &
-        defaultLongName='pressure due to ice weight', &
-        defaultShortName='PICE', rc=rc)
+        defaultLongName='j-directed wind stress into ocean', &
+        defaultShortName='v_flux', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="PICE", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%v_flux, &
+      name="v_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='PICE', &
+    call NUOPC_StateAdvertiseField(importState, standardName='v_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -731,26 +675,30 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    ! importable field: solar_heating_rate
-    if(.not. NUOPC_FieldDictionaryHasEntry('SWHEAT', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='SWHEAT', &
-        canonicalUnits='W m-2', &
-        defaultLongName='solar_heating_rate', &
-        defaultShortName='SWHEAT', rc=rc)
+    ! importable field: sensible heat flux into the ocean
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: sensible heat flux
+    if(.not. NUOPC_FieldDictionaryHasEntry('t_flux', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='t_flux', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='sensible heat flux into the ocean', &
+        defaultShortName='t_flux', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="SWHEAT", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%t_flux, &
+      name="t_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='SWHEAT', &
+    call NUOPC_StateAdvertiseField(importState, standardName='t_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -763,26 +711,30 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    ! importable field: freshwater_flux_from_skin_to_ocean
-    if(.not. NUOPC_FieldDictionaryHasEntry('QFLX', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='QFLX', &
-        canonicalUnits='kg m-2 s-1', &
-        defaultLongName='freshwater_flux_from_skin_to_ocean', &
-        defaultShortName='QFLX', rc=rc)
+    ! importable field: longwave radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: longwave_radiative_flux_into_ocean
+    if(.not. NUOPC_FieldDictionaryHasEntry('lw_flux', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='lw_flux', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='longwave radiation', &
+        defaultShortName='lw_flux', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="QFLX", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%lw_flux, &
+      name="lw_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='QFLX', &
+    call NUOPC_StateAdvertiseField(importState, standardName='lw_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -795,26 +747,30 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    ! importable field: turbulent_heat_flux_from_skin_to_ocean
-    if(.not. NUOPC_FieldDictionaryHasEntry('HFLX', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='HFLX', &
-        canonicalUnits='W m-2', &
-        defaultLongName='turbulent_heat_flux_from_skin_to_ocean', &
-        defaultShortName='HFLX', rc=rc)
+    ! importable field: mass flux of liquid precip
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: 
+    if(.not. NUOPC_FieldDictionaryHasEntry('lprec', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='lprec', &
+        canonicalUnits='kg/m^2/s', &
+        defaultLongName='mass flux of liquid precip', &
+        defaultShortName='lprec', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="HFLX", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%lprec, &
+      name="lprec", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='HFLX', &
+    call NUOPC_StateAdvertiseField(importState, standardName='lprec', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -827,218 +783,30 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    ! importable field: salt_flux_from_skin_to_ocean
-    if(.not. NUOPC_FieldDictionaryHasEntry('SFLX', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='SFLX', &
-        canonicalUnits='kg m-2 s-1', &
-        defaultLongName='salt_flux_from_skin_to_ocean', &
-        defaultShortName='SFLX', rc=rc)
+    ! importable field: pressure of overlying sea ice and atmosphere
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: 
+    if(.not. NUOPC_FieldDictionaryHasEntry('p', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='p', &
+        canonicalUnits='Pa', &
+        defaultLongName='pressure of overlying sea ice and atmosphere', &
+        defaultShortName='p', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="SFLX", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%p, &
+      name="p", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='SFLX', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: net_downward_penetrating_direct_UV_flux
-    if(.not. NUOPC_FieldDictionaryHasEntry('PENUVR', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='PENUVR', &
-        canonicalUnits='W m-2', &
-        defaultLongName='net_downward_penetrating_direct_UV_flux', &
-        defaultShortName='PENUVR', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="PENUVR", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(importState, standardName='PENUVR', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: net_downward_penetrating_direct_PAR_flux
-    if(.not. NUOPC_FieldDictionaryHasEntry('PENPAR', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='PENPAR', &
-        canonicalUnits='W m-2', &
-        defaultLongName='net_downward_penetrating_direct_PAR_flux', &
-        defaultShortName='PENPAR', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="PENPAR", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(importState, standardName='PENPAR', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: net_downward_penetrating_diffuse_UV_flux
-    if(.not. NUOPC_FieldDictionaryHasEntry('PENUVF', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='PENUVF', &
-        canonicalUnits='W m-2', &
-        defaultLongName='net_downward_penetrating_diffuse_UV_flux', &
-        defaultShortName='PENUVF', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="PENUVF", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(importState, standardName='PENUVF', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: net_downward_penetrating_diffuse_PAR_flux
-    if(.not. NUOPC_FieldDictionaryHasEntry('PENPAF', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='PENPAF', &
-        canonicalUnits='W m-2', &
-        defaultLongName='net_downward_penetrating_diffuse_PAR_flux', &
-        defaultShortName='PENPAF', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="PENPAF", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(importState, standardName='PENPAF', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: tracer_mixing_ratios
-    if(.not. NUOPC_FieldDictionaryHasEntry('TR', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='TR', &
-        canonicalUnits='1', &
-        defaultLongName='tracer_mixing_ratios', &
-        defaultShortName='TR', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="TR", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(importState, standardName='TR', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: river_discharge_at_ocean_points
-    if(.not. NUOPC_FieldDictionaryHasEntry('DISCHARGE', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='DISCHARGE', &
-        canonicalUnits='kg m-2 s-1', &
-        defaultLongName='river_discharge_at_ocean_points', &
-        defaultShortName='DISCHARGE', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="DISCHARGE", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(importState, standardName='DISCHARGE', &
+    call NUOPC_StateAdvertiseField(importState, standardName='p', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1053,164 +821,41 @@ module mom_cap_mod
 
   end subroutine MOM5_RealizeImportFields
 !-----------------------------------------------------------------------------------------
-  subroutine MOM5_RealizeExportFields(exportState, gridOut, rc)
+  subroutine MOM5_RealizeExportFields(exportState, gridOut, Ocean_sfc, rc)
 
     type(ESMF_State), intent(inout)             :: exportState
     type(ESMF_Grid), intent(in)                 :: gridOut
+    type(ocean_public_type), intent(in)         :: Ocean_sfc
     integer, intent(inout)                      :: rc
 
     type(ESMF_Field)                            :: field
     
     rc = ESMF_SUCCESS
 
-    ! exportable field: surface_Agrid_eastward_velocity
-    if(.not. NUOPC_FieldDictionaryHasEntry('US', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='US', &
-        canonicalUnits='m s-1 ', &
-        defaultLongName='surface_Agrid_eastward_velocity', &
-        defaultShortName='US', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="US", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='US', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: surface_Agrid_northward_velocity
-    if(.not. NUOPC_FieldDictionaryHasEntry('VS', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='VS', &
-        canonicalUnits='m s-1 ', &
-        defaultLongName='surface_Agrid_northward_velocity', &
-        defaultShortName='VS', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="VS", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='VS', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: surface_Bgrid_X_velocity
-    if(.not. NUOPC_FieldDictionaryHasEntry('USB', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='USB', &
-        canonicalUnits='m s-1 ', &
-        defaultLongName='surface_Bgrid_X_velocity', &
-        defaultShortName='USB', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="USB", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='USB', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: surface_Bgrid_Y_velocity
-    if(.not. NUOPC_FieldDictionaryHasEntry('VSB', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='VSB', &
-        canonicalUnits='m s-1 ', &
-        defaultLongName='surface_Bgrid_Y_velocity', &
-        defaultShortName='VSB', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="VSB", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='VSB', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: surface_temperature
-    if(.not. NUOPC_FieldDictionaryHasEntry('TS', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='TS', &
+    ! exportable field: sea surface temperature on t-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: 
+    if(.not. NUOPC_FieldDictionaryHasEntry('t_surf', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='t_surf', &
         canonicalUnits='K', &
-        defaultLongName='surface_temperature', &
-        defaultShortName='TS', rc=rc)
+        defaultLongName='sea surface temperature on t-cell', &
+        defaultShortName='t_surf', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="TS", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridOut, &
+      farrayPtr=Ocean_sfc%t_surf, &
+      name="t_surf", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='TS', &
+    call NUOPC_StateAdvertiseField(exportState, standardName='t_surf', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1223,26 +868,30 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    ! exportable field: surface_salinity
-    if(.not. NUOPC_FieldDictionaryHasEntry('SS', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='SS', &
+    ! exportable field: sea surface salinity on t-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: 
+    if(.not. NUOPC_FieldDictionaryHasEntry('s_surf', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='s_surf', &
         canonicalUnits='psu', &
-        defaultLongName='surface_salinity', &
-        defaultShortName='SS', rc=rc)
+        defaultLongName='sea surface salinity on t-cell', &
+        defaultShortName='s_surf', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="SS", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridOut, &
+      farrayPtr=Ocean_sfc%s_surf, &
+      name="s_surf", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='SS', &
+    call NUOPC_StateAdvertiseField(exportState, standardName='s_surf', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1255,26 +904,30 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    ! exportable field: Mom4_ocean_mask_at_t-points
-    if(.not. NUOPC_FieldDictionaryHasEntry('MOM_3D_MASK', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='MOM_3D_MASK', &
-        canonicalUnits='1', &
-        defaultLongName='Mom4_ocean_mask_at_t-points', &
-        defaultShortName='MOM_3D_MASK', rc=rc)
+    ! exportable field: i-directed surface ocean velocity on u-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: 
+    if(.not. NUOPC_FieldDictionaryHasEntry('u_surf', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='u_surf', &
+        canonicalUnits='m/s', &
+        defaultLongName='i-directed surface ocean velocity on u-cell', &
+        defaultShortName='u_surf', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="MOM_3D_MASK", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridOut, &
+      farrayPtr=Ocean_sfc%u_surf, &
+      name="u_surf", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='MOM_3D_MASK', &
+    call NUOPC_StateAdvertiseField(exportState, standardName='u_surf', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1287,26 +940,30 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    ! exportable field: Mom4_ocean_area_at_t-points
-    if(.not. NUOPC_FieldDictionaryHasEntry('AREA', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='AREA', &
-        canonicalUnits='m+2', &
-        defaultLongName='Mom4_ocean_area_at_t-points', &
-        defaultShortName='AREA', rc=rc)
+    ! exportable field: j-directed surface ocean velocity on u-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: 
+    if(.not. NUOPC_FieldDictionaryHasEntry('v_surf', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='v_surf', &
+        canonicalUnits='m/s', &
+        defaultLongName='j-directed surface ocean velocity on u-cell', &
+        defaultShortName='v_surf', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="AREA", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridOut, &
+      farrayPtr=Ocean_sfc%v_surf, &
+      name="v_surf", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='AREA', &
+    call NUOPC_StateAdvertiseField(exportState, standardName='v_surf', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1319,666 +976,30 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    ! exportable field: sea_level_height
-    if(.not. NUOPC_FieldDictionaryHasEntry('SSH', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='SSH', &
+    ! exportable field: sea level
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: 
+    if(.not. NUOPC_FieldDictionaryHasEntry('sea_lev', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='sea_lev', &
         canonicalUnits='m', &
-        defaultLongName='sea_level_height', &
-        defaultShortName='SSH', rc=rc)
+        defaultLongName='sea level', &
+        defaultShortName='sea_lev', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
-    field = ESMF_FieldCreate(name="SSH", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridOut, &
+      farrayPtr=Ocean_sfc%sea_lev, &
+      name="sea_lev", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='SSH', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: layer_thickness
-    if(.not. NUOPC_FieldDictionaryHasEntry('DH', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='DH', &
-        canonicalUnits='m', &
-        defaultLongName='layer_thickness', &
-        defaultShortName='DH', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="DH", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='DH', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: density
-    if(.not. NUOPC_FieldDictionaryHasEntry('RHO', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='RHO', &
-        canonicalUnits='kg m-3', &
-        defaultLongName='density', &
-        defaultShortName='RHO', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="RHO", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='RHO', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mass_per_unit_area
-    if(.not. NUOPC_FieldDictionaryHasEntry('MASSCELLO', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='MASSCELLO', &
-        canonicalUnits='kg m-2', &
-        defaultLongName='mass_per_unit_area', &
-        defaultShortName='MASSCELLO', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="MASSCELLO", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='MASSCELLO', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: heat_content
-    if(.not. NUOPC_FieldDictionaryHasEntry('HC', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='HC', &
-        canonicalUnits='J m-2', &
-        defaultLongName='heat_content', &
-        defaultShortName='HC', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="HC", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='HC', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: eastward_current
-    if(.not. NUOPC_FieldDictionaryHasEntry('U', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='U', &
-        canonicalUnits='m s-1', &
-        defaultLongName='eastward_current', &
-        defaultShortName='U', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="U", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='U', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: northward_current
-    if(.not. NUOPC_FieldDictionaryHasEntry('V', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='V', &
-        canonicalUnits='m s-1', &
-        defaultLongName='northward_current', &
-        defaultShortName='V', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="V", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='V', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: x_current
-    if(.not. NUOPC_FieldDictionaryHasEntry('UX', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='UX', &
-        canonicalUnits='m s-1', &
-        defaultLongName='x_current', &
-        defaultShortName='UX', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="UX", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='UX', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: y_current
-    if(.not. NUOPC_FieldDictionaryHasEntry('VX', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='VX', &
-        canonicalUnits='m s-1', &
-        defaultLongName='y_current', &
-        defaultShortName='VX', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="VX", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='VX', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: potential_temperature
-    if(.not. NUOPC_FieldDictionaryHasEntry('T', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='T', &
-        canonicalUnits='K', &
-        defaultLongName='potential_temperature', &
-        defaultShortName='T', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="T", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='T', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: conservative_temperature
-    if(.not. NUOPC_FieldDictionaryHasEntry('TCON', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='TCON', &
-        canonicalUnits='K', &
-        defaultLongName='conservative_temperature', &
-        defaultShortName='TCON', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="TCON", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='TCON', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: salinity
-    if(.not. NUOPC_FieldDictionaryHasEntry('S', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='S', &
-        canonicalUnits='psu', &
-        defaultLongName='salinity', &
-        defaultShortName='S', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="S", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='S', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: upward_mass_transport
-    if(.not. NUOPC_FieldDictionaryHasEntry('WMO', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='WMO', &
-        canonicalUnits='tonne s-1', &
-        defaultLongName='upward_mass_transport', &
-        defaultShortName='WMO', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="WMO", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='WMO', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: upward_mass_transport_squared
-    if(.not. NUOPC_FieldDictionaryHasEntry('WMOSQ', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='WMOSQ', &
-        canonicalUnits='tonne2 s-2', &
-        defaultLongName='upward_mass_transport_squared', &
-        defaultShortName='WMOSQ', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="WMOSQ", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='WMOSQ', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: surface_temperature_squared
-    if(.not. NUOPC_FieldDictionaryHasEntry('TOSSQ', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='TOSSQ', &
-        canonicalUnits='K2', &
-        defaultLongName='surface_temperature_squared', &
-        defaultShortName='TOSSQ', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="TOSSQ", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='TOSSQ', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: pressure_at_sea_floor
-    if(.not. NUOPC_FieldDictionaryHasEntry('PBO', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='PBO', &
-        canonicalUnits='dbar', &
-        defaultLongName='pressure_at_sea_floor', &
-        defaultShortName='PBO', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="PBO", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='PBO', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: maximum_mixed_layer_thickness
-    if(.not. NUOPC_FieldDictionaryHasEntry('OMLDAMAX', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='OMLDAMAX', &
-        canonicalUnits='m', &
-        defaultLongName='maximum_mixed_layer_thickness', &
-        defaultShortName='OMLDAMAX', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="OMLDAMAX", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='OMLDAMAX', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: layer_depth
-    if(.not. NUOPC_FieldDictionaryHasEntry('DEPTH', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='DEPTH', &
-        canonicalUnits='m', &
-        defaultLongName='layer_depth', &
-        defaultShortName='DEPTH', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="DEPTH", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='DEPTH', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mixed_layer_depth
-    if(.not. NUOPC_FieldDictionaryHasEntry('MLD', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='MLD', &
-        canonicalUnits='m', &
-        defaultLongName='mixed_layer_depth', &
-        defaultShortName='MLD', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="MLD", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='MLD', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: barotropic streamfunction
-    if(.not. NUOPC_FieldDictionaryHasEntry('PSI', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='PSI', &
-        canonicalUnits='kg s-1', &
-        defaultLongName='barotropic streamfunction', &
-        defaultShortName='PSI', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="PSI", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='PSI', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: river_discharge_at_ocean_points
-    if(.not. NUOPC_FieldDictionaryHasEntry('DISCHARGE', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='DISCHARGE', &
-        canonicalUnits='kg m-2 s-1', &
-        defaultLongName='river_discharge_at_ocean_points', &
-        defaultShortName='DISCHARGE', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    field = ESMF_FieldCreate(name="DISCHARGE", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateAdvertiseField(exportState, standardName='DISCHARGE', &
+    call NUOPC_StateAdvertiseField(exportState, standardName='sea_lev', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
