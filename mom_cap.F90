@@ -275,16 +275,16 @@ module mom_cap_mod
 
     gridOut = gridIn ! for now out same as in
 
-    call MOM5_RealizeImportFields(importState, gridIn, ice_ocean_boundary, rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    call MOM5_RealizeExportFields(exportState, gridOut, Ocean_sfc, rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    !call MOM5_RealizeImportFields(importState, gridIn, ice_ocean_boundary, rc)
+    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    !  line=__LINE__, &
+    !  file=__FILE__)) &
+    !  return  ! bail out
+    !call MOM5_RealizeExportFields(exportState, gridOut, Ocean_sfc, rc)
+    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    !  line=__LINE__, &
+    !  file=__FILE__)) &
+    !  return  ! bail out
 
     write(*,*) '----- OCN initialization phase 1 completed'
 
