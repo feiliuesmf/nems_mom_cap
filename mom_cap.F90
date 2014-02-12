@@ -666,7 +666,6 @@ module mom_cap_mod
   return
   end subroutine external_coupler_mpi_exit
 !-----------------------------------------------------------------------------------------
-  
 
   subroutine MOM5_AdvertiseImportFields(importState, gridIn, Ice_ocean_boundary, rc)
 
@@ -681,7 +680,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_zonal_compt_moment_flx', &
-      name='mean_zonal_compt_moment_flx', &
+      longname='i-directed wind stress into ocean', &
+      shortname='u_flux', &
+      name='u_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -691,7 +692,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_merid_compt_moment_flx', &
-      name='mean_merid_compt_moment_flx', &
+      longname='j-directed wind stress into ocean', &
+      shortname='v_flux', &
+      name='v_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -701,7 +704,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_sensi_heat_flx', &
-      name='mean_sensi_heat_flx', &
+      longname='sensible heat flux into the ocean', &
+      shortname='t_flux', &
+      name='t_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -711,7 +716,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_laten_heat_flx', &
-      name='mean_laten_heat_flx', &
+      longname='specific humidity flux', &
+      shortname='q_flux', &
+      name='q_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -721,7 +728,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_salt_flx', &
-      name='mean_salt_flx', &
+      longname='salt flux into ocean', &
+      shortname='salt_flux', &
+      name='salt_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -731,7 +740,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_down_lw_rad_flx', &
-      name='mean_down_lw_rad_flx', &
+      longname='longwave radiation', &
+      shortname='lw_flux', &
+      name='lw_flux', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -741,7 +752,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_vis_dir_rad_flx', &
-      name='mean_down_sw_vis_dir_rad_flx', &
+      longname='direct visible sw radiation', &
+      shortname='sw_flux_vis_dir', &
+      name='sw_flux_vis_dir', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -751,7 +764,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_vis_dif_rad_flx', &
-      name='mean_down_sw_vis_dif_rad_flx', &
+      longname='diffuse visible sw radiation', &
+      shortname='sw_flux_vis_dif', &
+      name='sw_flux_vis_dif', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -761,7 +776,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_ir_dir_rad_flx', &
-      name='mean_down_sw_ir_dir_rad_flx', &
+      longname='direct near IR sw radiation', &
+      shortname='sw_flux_nir_dir', &
+      name='sw_flux_nir_dir', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -771,7 +788,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_ir_dif_rad_flx', &
-      name='mean_down_sw_ir_dif_rad_flx', &
+      longname='direct near IR sw radiation', &
+      shortname='sw_flux_nir_dif', &
+      name='sw_flux_nir_dif', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -781,7 +800,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_prec_rate', &
-      name='mean_prec_rate', &
+      longname='mass flux of liquid precip', &
+      shortname='lprec', &
+      name='lprec', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -791,7 +812,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_fprec_rate', &
-      name='mean_fprec_rate', &
+      longname='mass flux of frozen precip', &
+      shortname='fprec', &
+      name='fprec', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -801,7 +824,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_runoff_rate', &
-      name='mean_runoff_rate', &
+      longname='mass flux of liquid runoff', &
+      shortname='runoff', &
+      name='runoff', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -811,7 +836,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_calving_rate', &
-      name='mean_calving_rate', &
+      longname='mass flux of frozen runoff', &
+      shortname='calving', &
+      name='calving', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -821,7 +848,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_runoff_flx', &
-      name='mean_runoff_flx', &
+      longname='heat flux, relative to 0C, of liquid land water into ocean', &
+      shortname='runoff_hflx', &
+      name='runoff_hflx', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -831,7 +860,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mean_calving_flx', &
-      name='mean_calving_flx', &
+      longname='heat flux, relative to 0C, of frozen land water into ocean', &
+      shortname='calving_hflx', &
+      name='calving_hflx', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -841,7 +872,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='inst_pres_height_surface', &
-      name='inst_pres_height_surface', &
+      longname='pressure of overlying sea ice and atmosphere', &
+      shortname='p', &
+      name='p', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -851,6 +884,8 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(importState, standardName='mi', &
+      longname='mass of overlying sea ice (optional)', &
+      shortname='mi', &
       name='mi', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -878,20 +913,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%u_flux, &
-      name="mean_zonal_compt_moment_flx", rc=rc)
+      name="u_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_zonal_compt_moment_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="u_flux")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_zonal_compt_moment_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_zonal_compt_moment_flx/u_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -904,7 +939,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%u_flux = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_zonal_compt_moment_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"u_flux"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -917,20 +952,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%v_flux, &
-      name="mean_merid_compt_moment_flx", rc=rc)
+      name="v_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_merid_compt_moment_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="v_flux")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_merid_compt_moment_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_merid_compt_moment_flx/v_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -943,7 +978,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%v_flux = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_merid_compt_moment_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"v_flux"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -956,20 +991,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%t_flux, &
-      name="mean_sensi_heat_flx", rc=rc)
+      name="t_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_sensi_heat_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="t_flux")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_sensi_heat_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_sensi_heat_flx/t_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -982,7 +1017,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%t_flux = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_sensi_heat_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"t_flux"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -995,20 +1030,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%q_flux, &
-      name="mean_laten_heat_flx", rc=rc)
+      name="q_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_laten_heat_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="q_flux")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_laten_heat_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_laten_heat_flx/q_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1021,7 +1056,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%q_flux = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_laten_heat_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"q_flux"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1034,20 +1069,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%salt_flux, &
-      name="mean_salt_flx", rc=rc)
+      name="salt_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_salt_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="salt_flux")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_salt_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_salt_flx/salt_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1060,7 +1095,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%salt_flux = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_salt_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"salt_flux"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1073,20 +1108,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%lw_flux, &
-      name="mean_down_lw_rad_flx", rc=rc)
+      name="lw_flux", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_lw_rad_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="lw_flux")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_lw_rad_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_lw_rad_flx/lw_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1099,7 +1134,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%lw_flux = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_down_lw_rad_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"lw_flux"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1112,20 +1147,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%sw_flux_vis_dir, &
-      name="mean_down_sw_vis_dir_rad_flx", rc=rc)
+      name="sw_flux_vis_dir", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_sw_vis_dir_rad_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="sw_flux_vis_dir")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_sw_vis_dir_rad_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dir_rad_flx/sw_flux_vis_dir is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1138,7 +1173,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%sw_flux_vis_dir = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_down_sw_vis_dir_rad_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"sw_flux_vis_dir"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1151,20 +1186,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%sw_flux_vis_dif, &
-      name="mean_down_sw_vis_dif_rad_flx", rc=rc)
+      name="sw_flux_vis_dif", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_sw_vis_dif_rad_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="sw_flux_vis_dif")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_sw_vis_dif_rad_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dif_rad_flx/sw_flux_vis_dif is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1177,7 +1212,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%sw_flux_vis_dif = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_down_sw_vis_dif_rad_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"sw_flux_vis_dif"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1190,20 +1225,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%sw_flux_nir_dir, &
-      name="mean_down_sw_ir_dir_rad_flx", rc=rc)
+      name="sw_flux_nir_dir", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_sw_ir_dir_rad_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="sw_flux_nir_dir")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_sw_ir_dir_rad_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dir_rad_flx/sw_flux_nir_dir is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1216,7 +1251,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%sw_flux_nir_dir = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_down_sw_ir_dir_rad_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"sw_flux_nir_dir"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1229,20 +1264,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%sw_flux_nir_dif, &
-      name="mean_down_sw_ir_dif_rad_flx", rc=rc)
+      name="sw_flux_nir_dif", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_sw_ir_dif_rad_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="sw_flux_nir_dif")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_sw_ir_dif_rad_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dif_rad_flx/sw_flux_nir_dif is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1255,7 +1290,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%sw_flux_nir_dif = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_down_sw_ir_dif_rad_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"sw_flux_nir_dif"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1268,20 +1303,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%lprec, &
-      name="mean_prec_rate", rc=rc)
+      name="lprec", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_prec_rate")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="lprec")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_prec_rate is not connected.", &
+      call ESMF_LogWrite("import Field mean_prec_rate/lprec is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1294,7 +1329,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%lprec = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_prec_rate"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"lprec"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1307,20 +1342,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%fprec, &
-      name="mean_fprec_rate", rc=rc)
+      name="fprec", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_fprec_rate")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="fprec")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_fprec_rate is not connected.", &
+      call ESMF_LogWrite("import Field mean_fprec_rate/fprec is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1333,7 +1368,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%fprec = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_fprec_rate"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"fprec"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1346,20 +1381,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%runoff, &
-      name="mean_runoff_rate", rc=rc)
+      name="runoff", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_runoff_rate")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="runoff")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_runoff_rate is not connected.", &
+      call ESMF_LogWrite("import Field mean_runoff_rate/runoff is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1372,7 +1407,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%runoff = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_runoff_rate"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"runoff"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1385,20 +1420,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%calving, &
-      name="mean_calving_rate", rc=rc)
+      name="calving", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_calving_rate")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="calving")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_calving_rate is not connected.", &
+      call ESMF_LogWrite("import Field mean_calving_rate/calving is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1411,7 +1446,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%calving = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_calving_rate"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"calving"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1424,20 +1459,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%runoff_hflx, &
-      name="mean_runoff_flx", rc=rc)
+      name="runoff_hflx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_runoff_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="runoff_hflx")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_runoff_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_runoff_flx/runoff_hflx is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1450,7 +1485,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%runoff_hflx = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_runoff_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"runoff_hflx"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1463,20 +1498,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%calving_hflx, &
-      name="mean_calving_flx", rc=rc)
+      name="calving_hflx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_calving_flx")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="calving_hflx")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_calving_flx is not connected.", &
+      call ESMF_LogWrite("import Field mean_calving_flx/calving_hflx is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1489,7 +1524,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%calving_hflx = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"mean_calving_flx"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"calving_hflx"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1502,20 +1537,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%p, &
-      name="inst_pres_height_surface", rc=rc)
+      name="p", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="inst_pres_height_surface")) then
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="p")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field inst_pres_height_surface is not connected.", &
+      call ESMF_LogWrite("import Field inst_pres_height_surface/p is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1528,7 +1563,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ice_ocean_boundary%p = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"inst_pres_height_surface"/), rc=rc)
+      call ESMF_StateRemove(importState, (/"p"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1554,7 +1589,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mi is not connected.", &
+      call ESMF_LogWrite("import Field mi/mi is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1885,7 +1920,9 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(exportState, standardName='sea_surface_temperature', &
-      name='sea_surface_temperature', &
+      longname='sea surface temperature on t-cell', &
+      shortname='t_surf', &
+      name='t_surf', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1895,6 +1932,8 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(exportState, standardName='s_surf', &
+      longname='sea surface salinity on t-cell', &
+      shortname='s_surf', &
       name='s_surf', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1905,6 +1944,8 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(exportState, standardName='u_surf', &
+      longname='i-directed surface ocean velocity on u-cell', &
+      shortname='u_surf', &
       name='u_surf', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1915,6 +1956,8 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(exportState, standardName='v_surf', &
+      longname='j-directed surface ocean velocity on u-cell', &
+      shortname='v_surf', &
       name='v_surf', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1925,6 +1968,8 @@ module mom_cap_mod
 
 
     call NUOPC_StateAdvertiseField(exportState, standardName='sea_lev', &
+      longname='sea level', &
+      shortname='sea_lev', &
       name='sea_lev', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1952,20 +1997,20 @@ module mom_cap_mod
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridOut, &
       farrayPtr=Ocean_sfc%t_surf, &
-      name="sea_surface_temperature", rc=rc)
+      name="t_surf", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    if (NUOPC_StateIsFieldConnected(exportState, fieldName="sea_surface_temperature")) then
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="t_surf")) then
       call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("export Field sea_surface_temperature is not connected.", &
+      call ESMF_LogWrite("export Field sea_surface_temperature/t_surf is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1978,7 +2023,7 @@ module mom_cap_mod
       ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
       Ocean_sfc%t_surf = 0.0
       ! remove a not connected Field from State
-      call ESMF_StateRemove(exportState, (/"sea_surface_temperature"/), rc=rc)
+      call ESMF_StateRemove(exportState, (/"t_surf"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -2004,7 +2049,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("export Field s_surf is not connected.", &
+      call ESMF_LogWrite("export Field s_surf/s_surf is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -2043,7 +2088,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("export Field u_surf is not connected.", &
+      call ESMF_LogWrite("export Field u_surf/u_surf is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -2082,7 +2127,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("export Field v_surf is not connected.", &
+      call ESMF_LogWrite("export Field v_surf/v_surf is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -2121,7 +2166,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("export Field sea_lev is not connected.", &
+      call ESMF_LogWrite("export Field sea_lev/sea_lev is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
