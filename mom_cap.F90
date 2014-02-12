@@ -60,6 +60,8 @@ module mom_cap_mod
     type(ocean_internalstate_type), pointer :: ptr
   end type
 
+  integer   :: import_slice = 1
+
   contains
   !-----------------------------------------------------------------------
   !------------------- Solo Ocean code starts here -----------------------
@@ -522,6 +524,24 @@ module mom_cap_mod
 
     call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
+    call writeSliceFields(importState, (/ &
+      "u_flux"          ,&
+      "v_flux"          ,&
+      "t_flux"          ,&
+      "q_flux"          ,&
+      "lw_flux"         ,&
+      "sw_flux_vis_dir" ,&
+      "sw_flux_vis_dif" ,&
+      "sw_flux_nir_dir" ,&
+      "sw_flux_nir_dif" ,&
+      "lprec"           ,&
+      "p"              /), import_slice, rc=rc) 
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    import_slice = import_slice + 1
+
     !write(*,*) 'MOM: --- run phase called ---'
 
   end subroutine 
@@ -666,6 +686,50 @@ module mom_cap_mod
   return
   end subroutine external_coupler_mpi_exit
 !-----------------------------------------------------------------------------------------
+    subroutine writeSliceFields(state, fieldNameList, slice, rc)
+      type(ESMF_State)                :: state
+      character(len=*)                :: fieldNameList(:)
+      integer                         :: slice
+      integer, intent(out), optional  :: rc
+
+      integer                         :: n
+      type(ESMF_Field)                :: field
+      type(ESMF_StateItem_Flag)       :: itemType
+      character(len=40)               :: fileName
+      character(len=*),parameter :: subname='(module_MEDIATOR:writeSliceFields)'
+
+      if (present(rc)) rc = ESMF_SUCCESS
+      
+      if (ESMF_IO_PIO_PRESENT .and. &
+        (ESMF_IO_NETCDF_PRESENT .or. ESMF_IO_PNETCDF_PRESENT)) then
+        do n=1, size(fieldNameList)
+          call ESMF_StateGet(state, itemName=fieldNameList(n), &
+            itemType=itemType, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+          if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+            ! field is available in the state
+            call ESMF_StateGet(state, itemName=fieldNameList(n), field=field, &
+              rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, &
+              file=__FILE__)) &
+              return  ! bail out
+            ! -> output to file
+            write (fileName,"(A)") &
+              "field_med_atm_"//trim(fieldNameList(n))//".nc"
+            call ESMF_FieldWrite(field, file=trim(fileName), &
+              timeslice=slice, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, &
+              file=__FILE__)) &
+              call ESMF_Finalize(endflag=ESMF_END_ABORT)
+          endif
+        enddo
+      endif
+    end subroutine writeSliceFields
 
   subroutine MOM5_AdvertiseImportFields(importState, gridIn, Ice_ocean_boundary, rc)
 
@@ -925,6 +989,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("import Field mean_zonal_compt_moment_flx/u_flux is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("import Field mean_zonal_compt_moment_flx/u_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -960,6 +1033,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(importState, fieldName="v_flux")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("import Field mean_merid_compt_moment_flx/v_flux is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1003,6 +1085,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("import Field mean_sensi_heat_flx/t_flux is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("import Field mean_sensi_heat_flx/t_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -1038,6 +1129,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(importState, fieldName="q_flux")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("import Field mean_laten_heat_flx/q_flux is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1081,6 +1181,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("import Field mean_salt_flx/salt_flux is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("import Field mean_salt_flx/salt_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -1116,6 +1225,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(importState, fieldName="lw_flux")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("import Field mean_down_lw_rad_flx/lw_flux is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1159,6 +1277,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dir_rad_flx/sw_flux_vis_dir is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("import Field mean_down_sw_vis_dir_rad_flx/sw_flux_vis_dir is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -1194,6 +1321,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(importState, fieldName="sw_flux_vis_dif")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dif_rad_flx/sw_flux_vis_dif is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1237,6 +1373,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dir_rad_flx/sw_flux_nir_dir is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("import Field mean_down_sw_ir_dir_rad_flx/sw_flux_nir_dir is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -1272,6 +1417,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(importState, fieldName="sw_flux_nir_dif")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dif_rad_flx/sw_flux_nir_dif is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1315,6 +1469,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("import Field mean_prec_rate/lprec is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("import Field mean_prec_rate/lprec is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -1350,6 +1513,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(importState, fieldName="fprec")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("import Field mean_fprec_rate/fprec is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1393,6 +1565,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("import Field mean_runoff_rate/runoff is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("import Field mean_runoff_rate/runoff is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -1428,6 +1609,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(importState, fieldName="calving")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("import Field mean_calving_rate/calving is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1471,6 +1661,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("import Field mean_runoff_flx/runoff_hflx is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("import Field mean_runoff_flx/runoff_hflx is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -1506,6 +1705,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(importState, fieldName="calving_hflx")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("import Field mean_calving_flx/calving_hflx is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1549,6 +1757,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("import Field inst_pres_height_surface/p is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("import Field inst_pres_height_surface/p is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -1584,6 +1801,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(importState, fieldName="mi")) then
       call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("import Field mi/mi is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -2009,6 +2235,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("export Field sea_surface_temperature/t_surf is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("export Field sea_surface_temperature/t_surf is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -2087,6 +2322,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("export Field u_surf/u_surf is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("export Field u_surf/u_surf is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -2161,6 +2405,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(exportState, fieldName="sea_lev")) then
       call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("export Field sea_lev/sea_lev is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
