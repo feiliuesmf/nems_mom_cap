@@ -102,15 +102,27 @@ module mom_cap_mod
     
     ! attach specializing method(s)
     ! No need to change clock settings
-    !call ESMF_MethodAdd(gcomp, label=model_label_SetClock, &
-    !  userRoutine=SetClock, rc=rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
+    call ESMF_MethodAdd(gcomp, label=model_label_SetClock, &
+      userRoutine=SetClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
     
     call ESMF_MethodAdd(gcomp, label=model_label_Advance, &
       userRoutine=ModelAdvance, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call MOM5_BuildImportFieldDictionary(rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call MOM5_BuildExportFieldDictionary(rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -198,6 +210,7 @@ module mom_cap_mod
     call diag_manager_init
     call set_calendar_type (JULIAN                )
     ! this ocean connector will be driven at set interval
+    dt_cpld = DT_OCEAN
     DT = set_time (DT_OCEAN, 0)         
     Time = set_date (YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
 
@@ -219,6 +232,9 @@ module mom_cap_mod
                Ice_ocean_boundary% fprec (isc:iec,jsc:jec),           &
                Ice_ocean_boundary% runoff (isc:iec,jsc:jec),          &
                Ice_ocean_boundary% calving (isc:iec,jsc:jec),         &
+               Ice_ocean_boundary% runoff_hflx (isc:iec,jsc:jec),     &
+               Ice_ocean_boundary% calving_hflx (isc:iec,jsc:jec),    &
+               Ice_ocean_boundary% mi (isc:iec,jsc:jec),              &
                Ice_ocean_boundary% p (isc:iec,jsc:jec))
 
     Ice_ocean_boundary%u_flux          = 0.0
@@ -235,6 +251,9 @@ module mom_cap_mod
     Ice_ocean_boundary%fprec           = 0.0
     Ice_ocean_boundary%runoff          = 0.0
     Ice_ocean_boundary%calving         = 0.0
+    Ice_ocean_boundary%runoff_hflx     = 0.0
+    Ice_ocean_boundary%calving_hflx    = 0.0
+    Ice_ocean_boundary%mi              = 0.0
     Ice_ocean_boundary%p               = 0.0
 
     call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len)
@@ -246,11 +265,94 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
+    !call ESMF_VMGet(vm, petCount=npet, rc=rc)
+    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    !  line=__LINE__, &
+    !  file=__FILE__)) &
+    !  return  ! bail out
+
+    ! create a Grid object for Fields
+    ! we are going to create a single tile tripolar grid from a gridspec
+    ! file. We also use the exact decomposition in MOM5 so that the Fields
+    ! created can wrap on the data pointers in internal part of MOM5
+    !gridIn = ESMF_GridCreate('grid_spec.nc', ESMF_FILEFORMAT_GRIDSPEC, &
+    !    (/6, 4/), isSphere=.true., coordNames=(/'gridlon_t', 'gridlat_t'/), &
+    !    addCornerStagger=.true., rc=rc)
+    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    !  line=__LINE__, &
+    !  file=__FILE__)) &
+    !  return  ! bail out
+
+    !gridIn = NUOPC_GridCreateSimpleXY( &
+    !  0._ESMF_KIND_R8, 5.75_ESMF_KIND_R8, &
+    !  -1.5_ESMF_KIND_R8, 2.0_ESMF_KIND_R8, &
+    !  100, 100, rc=rc)
+    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    !  line=__LINE__, &
+    !  file=__FILE__)) &
+    !  return  ! bail out
+
+    !gridOut = gridIn ! for now out same as in
+
+    call MOM5_AdvertiseImportFields(importState, gridIn, ice_ocean_boundary, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call MOM5_AdvertiseExportFields(exportState, gridOut, Ocean_sfc, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    write(*,*) '----- MOM5 initialization phase 1 completed'
+
+  end subroutine
+  
+  !-----------------------------------------------------------------------------
+
+  subroutine InitializeP2(gcomp, importState, exportState, clock, rc)
+    type(ESMF_GridComp)  :: gcomp
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+
+    ! Local Variables
+    type(ESMF_VM)                          :: vm
+    type(ESMF_Grid)                        :: gridIn
+    type(ESMF_Grid)                        :: gridOut
+    type (ocean_public_type),      pointer :: Ocean_sfc   => NULL()
+    type (ocean_state_type),       pointer :: Ocean_state => NULL()
+    type(ice_ocean_boundary_type), pointer :: Ice_ocean_boundary => NULL()
+    type(ocean_internalstate_wrapper)      :: ocean_internalstate
+    integer                                :: npet
+    
+    rc = ESMF_SUCCESS
+
+    call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    Ice_ocean_boundary => ocean_internalstate%ptr%ice_ocean_boundary_type_ptr
+    Ocean_sfc          => ocean_internalstate%ptr%ocean_public_type_ptr
+    Ocean_state        => ocean_internalstate%ptr%ocean_state_type_ptr
+
+    call ESMF_VMGetCurrent(vm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
     call ESMF_VMGet(vm, petCount=npet, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+
+    ! We can check if npet is 24 or some other value to make sure
+    ! MOM5 is configured to run on the correct number of processors.
 
     ! create a Grid object for Fields
     ! we are going to create a single tile tripolar grid from a gridspec
@@ -264,83 +366,69 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    !gridIn = NUOPC_GridCreateSimpleXY( &
-    !  0._ESMF_KIND_R8, 5.75_ESMF_KIND_R8, &
-    !  -1.5_ESMF_KIND_R8, 2.0_ESMF_KIND_R8, &
-    !  100, 100, rc=rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
-
     gridOut = gridIn ! for now out same as in
 
-    !call MOM5_RealizeImportFields(importState, gridIn, ice_ocean_boundary, rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
-    !call MOM5_RealizeExportFields(exportState, gridOut, Ocean_sfc, rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
+    call MOM5_RealizeImportFields(importState, gridIn, ice_ocean_boundary, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call MOM5_RealizeExportFields(exportState, gridOut, Ocean_sfc, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
-    write(*,*) '----- OCN initialization phase 1 completed'
+    write(*,*) '----- MOM5 initialization phase 2 completed'
 
   end subroutine
   
   !-----------------------------------------------------------------------------
 
-  subroutine InitializeP2(gcomp, importState, exportState, clock, rc)
+  ! Ocean model uses same clock as parent gridComp
+  subroutine SetClock(gcomp, rc)
     type(ESMF_GridComp)  :: gcomp
-    type(ESMF_State)     :: importState, exportState
-    type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
     
+    ! local variables
+    type(ESMF_Clock)              :: clock
+    type(ESMF_TimeInterval)       :: stabilityTimeStep, timestep
+
     rc = ESMF_SUCCESS
+    
+    ! query the Component for its clock, importState and exportState
+    call ESMF_GridCompGet(gcomp, clock=clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
-    write(*,*) '----- OCN initialization phase 2 completed'
+    call ESMF_TimeIntervalSet(timestep, m=60, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
+    call ESMF_ClockSet(clock, timestep=timestep, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    ! initialize internal clock
+    ! here: parent Clock and stability timeStep determine actual model timeStep
+    call ESMF_TimeIntervalSet(stabilityTimeStep, m=60, rc=rc) 
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_GridCompSetClock(gcomp, clock, stabilityTimeStep, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
   end subroutine
-  
-  !-----------------------------------------------------------------------------
-
-  ! Ocean solo model uses same clock as parent gridComp
-  !subroutine SetClock(gcomp, rc)
-  !  type(ESMF_GridComp)  :: gcomp
-  !  integer, intent(out) :: rc
-  !  
-  !  ! local variables
-  !  type(ESMF_Clock)              :: clock
-  !  type(ESMF_TimeInterval)       :: stabilityTimeStep
-
-  !  rc = ESMF_SUCCESS
-  !  
-  !  ! query the Component for its clock, importState and exportState
-  !  call ESMF_GridCompGet(gcomp, clock=clock, rc=rc)
-  !  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-  !    line=__LINE__, &
-  !    file=__FILE__)) &
-  !    return  ! bail out
-  !    
-  !  ! initialize internal clock
-  !  ! here: parent Clock and stability timeStep determine actual model timeStep
-  !  !TODO: stabilityTimeStep should be read in from configuation
-  !  !TODO: or computed from internal Grid information
-  !  call ESMF_TimeIntervalSet(stabilityTimeStep, m=60, rc=rc) 
-  !  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-  !    line=__LINE__, &
-  !    file=__FILE__)) &
-  !    return  ! bail out
-  !  call NUOPC_GridCompSetClock(gcomp, clock, stabilityTimeStep, rc=rc)
-  !  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-  !    line=__LINE__, &
-  !    file=__FILE__)) &
-  !    return  ! bail out
-
-  !  
-  !end subroutine
 
   !-----------------------------------------------------------------------------
 
@@ -396,12 +484,12 @@ module mom_cap_mod
     ! will come in by one internal timeStep advanced. This goes until the
     ! stopTime of the internal Clock has been reached.
     
-    call NUOPC_ClockPrintCurrTime(clock, &
-      "------>Advancing OCN from: ", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    !call NUOPC_ClockPrintCurrTime(clock, &
+    !  "------>Advancing OCN from: ", rc=rc)
+    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    !  line=__LINE__, &
+    !  file=__FILE__)) &
+    !  return  ! bail out
     
     call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -409,12 +497,12 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     
-    call NUOPC_TimePrint(currTime + timeStep, &
-      "--------------------------------> to: ", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    !call NUOPC_TimePrint(currTime + timeStep, &
+    !  "--------------------------------> to: ", rc=rc)
+    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    !  line=__LINE__, &
+    !  file=__FILE__)) &
+    !  return  ! bail out
 
     call ESMF_TimeIntervalGet(timeStep, h=dth, m=dtm, s=dts, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -434,7 +522,7 @@ module mom_cap_mod
 
     call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
-    write(*,*) 'MOM: --- run phase called ---'
+    !write(*,*) 'MOM: --- run phase called ---'
 
   end subroutine 
 
@@ -452,8 +540,6 @@ module mom_cap_mod
     type(ocean_internalstate_wrapper)      :: ocean_internalstate
     type(TIME_TYPE)                        :: Time        
     type(ESMF_Time)                        :: currTime
-    type(ESMF_VM)                          :: vm
-    integer                                :: mpi_comm_mom, dt_cpld, num_cpld_calls
     character(len=64)                      :: timestamp
 
     rc = ESMF_SUCCESS
@@ -473,18 +559,6 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     Time = esmf2fms_time(currTime)
-
-    call ESMF_VMGetCurrent(vm=vm, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call ESMF_VMGet(vm, mpiCommunicator=mpi_comm_mom, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
 
     call ocean_model_end (Ocean_sfc, Ocean_State, Time)
     call diag_manager_end(Time )
@@ -592,6 +666,201 @@ module mom_cap_mod
   return
   end subroutine external_coupler_mpi_exit
 !-----------------------------------------------------------------------------------------
+  
+
+  subroutine MOM5_AdvertiseImportFields(importState, gridIn, Ice_ocean_boundary, rc)
+
+    type(ESMF_State), intent(inout)             :: importState
+    type(ESMF_Grid), intent(in)                 :: gridIn
+    type(ice_ocean_boundary_type), intent(in)   :: Ice_ocean_boundary
+    integer, intent(inout)                      :: rc
+
+    type(ESMF_Field)                            :: field
+    
+    rc = ESMF_SUCCESS
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_zonal_compt_moment_flx', &
+      name='mean_zonal_compt_moment_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_merid_compt_moment_flx', &
+      name='mean_merid_compt_moment_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_sensi_heat_flx', &
+      name='mean_sensi_heat_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_laten_heat_flx', &
+      name='mean_laten_heat_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_salt_flx', &
+      name='mean_salt_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_lw_rad_flx', &
+      name='mean_down_lw_rad_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_vis_dir_rad_flx', &
+      name='mean_down_sw_vis_dir_rad_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_vis_dif_rad_flx', &
+      name='mean_down_sw_vis_dif_rad_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_ir_dir_rad_flx', &
+      name='mean_down_sw_ir_dir_rad_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_ir_dif_rad_flx', &
+      name='mean_down_sw_ir_dif_rad_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_prec_rate', &
+      name='mean_prec_rate', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_fprec_rate', &
+      name='mean_fprec_rate', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_runoff_rate', &
+      name='mean_runoff_rate', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_calving_rate', &
+      name='mean_calving_rate', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_runoff_flx', &
+      name='mean_runoff_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_calving_flx', &
+      name='mean_calving_flx', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='inst_pres_height_surface', &
+      name='inst_pres_height_surface', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(importState, standardName='mi', &
+      name='mi', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+  end subroutine MOM5_AdvertiseImportFields
+  
   subroutine MOM5_RealizeImportFields(importState, gridIn, Ice_ocean_boundary, rc)
 
     type(ESMF_State), intent(inout)             :: importState
@@ -605,222 +874,1067 @@ module mom_cap_mod
 
     ! importable field: i-directed wind stress into ocean
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: 
-    if(.not. NUOPC_FieldDictionaryHasEntry('u_flux', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='u_flux', &
-        canonicalUnits='Pa', &
-        defaultLongName='i-directed wind stress into ocean', &
-        defaultShortName='u_flux', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
+    ! Corresponding GSM atmosphere output field name: mean_zonal_compt_moment_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%u_flux, &
-      name="u_flux", rc=rc)
+      name="mean_zonal_compt_moment_flx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='u_flux', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_zonal_compt_moment_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_zonal_compt_moment_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%u_flux = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_zonal_compt_moment_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
 
     ! importable field: j-directed wind stress into ocean
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: 
-    if(.not. NUOPC_FieldDictionaryHasEntry('v_flux', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='v_flux', &
-        canonicalUnits='Pa', &
-        defaultLongName='j-directed wind stress into ocean', &
-        defaultShortName='v_flux', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
+    ! Corresponding GSM atmosphere output field name: mean_merid_compt_moment_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%v_flux, &
-      name="v_flux", rc=rc)
+      name="mean_merid_compt_moment_flx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='v_flux', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_merid_compt_moment_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_merid_compt_moment_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%v_flux = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_merid_compt_moment_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
 
     ! importable field: sensible heat flux into the ocean
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: sensible heat flux
-    if(.not. NUOPC_FieldDictionaryHasEntry('t_flux', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='t_flux', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='sensible heat flux into the ocean', &
-        defaultShortName='t_flux', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
+    ! Corresponding GSM atmosphere output field name: mean_sensi_heat_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%t_flux, &
-      name="t_flux", rc=rc)
+      name="mean_sensi_heat_flx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='t_flux', &
-      rc=rc)
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_sensi_heat_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_sensi_heat_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%t_flux = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_sensi_heat_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: specific humidity flux
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_laten_heat_flx
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%q_flux, &
+      name="mean_laten_heat_flx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_laten_heat_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_laten_heat_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%q_flux = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_laten_heat_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: salt flux into ocean
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_salt_flx
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%salt_flux, &
+      name="mean_salt_flx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_salt_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_salt_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%salt_flux = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_salt_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
 
     ! importable field: longwave radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: longwave_radiative_flux_into_ocean
-    if(.not. NUOPC_FieldDictionaryHasEntry('lw_flux', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='lw_flux', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='longwave radiation', &
-        defaultShortName='lw_flux', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
+    ! Corresponding GSM atmosphere output field name: mean_down_lw_rad_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%lw_flux, &
-      name="lw_flux", rc=rc)
+      name="mean_down_lw_rad_flx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='lw_flux', &
-      rc=rc)
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_lw_rad_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_down_lw_rad_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%lw_flux = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_down_lw_rad_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: direct visible sw radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dir_rad_flx
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%sw_flux_vis_dir, &
+      name="mean_down_sw_vis_dir_rad_flx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_sw_vis_dir_rad_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dir_rad_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%sw_flux_vis_dir = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_down_sw_vis_dir_rad_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: diffuse visible sw radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dif_rad_flx
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%sw_flux_vis_dif, &
+      name="mean_down_sw_vis_dif_rad_flx", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_sw_vis_dif_rad_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dif_rad_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%sw_flux_vis_dif = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_down_sw_vis_dif_rad_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: direct near IR sw radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dir_rad_flx
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%sw_flux_nir_dir, &
+      name="mean_down_sw_ir_dir_rad_flx", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_sw_ir_dir_rad_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dir_rad_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%sw_flux_nir_dir = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_down_sw_ir_dir_rad_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: direct near IR sw radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dif_rad_flx
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%sw_flux_nir_dif, &
+      name="mean_down_sw_ir_dif_rad_flx", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_down_sw_ir_dif_rad_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dif_rad_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%sw_flux_nir_dif = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_down_sw_ir_dif_rad_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
 
     ! importable field: mass flux of liquid precip
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: 
-    if(.not. NUOPC_FieldDictionaryHasEntry('lprec', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='lprec', &
-        canonicalUnits='kg/m^2/s', &
-        defaultLongName='mass flux of liquid precip', &
-        defaultShortName='lprec', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
+    ! Corresponding GSM atmosphere output field name: mean_prec_rate
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%lprec, &
-      name="lprec", rc=rc)
+      name="mean_prec_rate", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='lprec', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: pressure of overlying sea ice and atmosphere
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: 
-    if(.not. NUOPC_FieldDictionaryHasEntry('p', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='p', &
-        canonicalUnits='Pa', &
-        defaultLongName='pressure of overlying sea ice and atmosphere', &
-        defaultShortName='p', rc=rc)
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_prec_rate")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_prec_rate is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%lprec = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_prec_rate"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
+    ! importable field: mass flux of frozen precip
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_fprec_rate
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
-      farrayPtr=Ice_ocean_boundary%p, &
-      name="p", rc=rc)
+      farrayPtr=Ice_ocean_boundary%fprec, &
+      name="mean_fprec_rate", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(importState, standardName='p', &
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_fprec_rate")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_fprec_rate is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%fprec = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_fprec_rate"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: mass flux of liquid runoff
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_runoff_rate
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%runoff, &
+      name="mean_runoff_rate", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_runoff_rate")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_runoff_rate is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%runoff = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_runoff_rate"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: mass flux of frozen runoff
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_calving_rate
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%calving, &
+      name="mean_calving_rate", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_calving_rate")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_calving_rate is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%calving = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_calving_rate"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: heat flux, relative to 0C, of liquid land water into ocean
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_runoff_flx
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%runoff_hflx, &
+      name="mean_runoff_flx", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_runoff_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_runoff_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%runoff_hflx = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_runoff_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: heat flux, relative to 0C, of frozen land water into ocean
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_calving_flx
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%calving_hflx, &
+      name="mean_calving_flx", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mean_calving_flx")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mean_calving_flx is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%calving_hflx = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mean_calving_flx"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: pressure of overlying sea ice and atmosphere
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: inst_pres_height_surface
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%p, &
+      name="inst_pres_height_surface", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="inst_pres_height_surface")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field inst_pres_height_surface is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%p = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"inst_pres_height_surface"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    ! importable field: mass of overlying sea ice (optional)
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mi
+    ! Wraps around the internal MOM5 Fortran array pointer
+    field = ESMF_FieldCreate(grid=gridIn, &
+      farrayPtr=Ice_ocean_boundary%mi, &
+      name="mi", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mi")) then
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("import Field mi is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ice_ocean_boundary%mi = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"mi"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+  end subroutine MOM5_RealizeImportFields
+  
+  subroutine MOM5_BuildImportFieldDictionary(rc)
+
+    integer, intent(inout)                      :: rc
+
+    rc = ESMF_SUCCESS
+
+
+    ! importable field: i-directed wind stress into ocean
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_zonal_compt_moment_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_zonal_compt_moment_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_zonal_compt_moment_flx', &
+        canonicalUnits='Pa', &
+        defaultLongName='i-directed wind stress into ocean', &
+        defaultShortName='u_flux', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: j-directed wind stress into ocean
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_merid_compt_moment_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_merid_compt_moment_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_merid_compt_moment_flx', &
+        canonicalUnits='Pa', &
+        defaultLongName='j-directed wind stress into ocean', &
+        defaultShortName='v_flux', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: sensible heat flux into the ocean
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_sensi_heat_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_sensi_heat_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_sensi_heat_flx', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='sensible heat flux into the ocean', &
+        defaultShortName='t_flux', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: specific humidity flux
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_laten_heat_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_laten_heat_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_laten_heat_flx', &
+        canonicalUnits='kg/m^2/s', &
+        defaultLongName='specific humidity flux', &
+        defaultShortName='q_flux', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: salt flux into ocean
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_salt_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_salt_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_salt_flx', &
+        canonicalUnits='kg/m^2/s', &
+        defaultLongName='salt flux into ocean', &
+        defaultShortName='salt_flux', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: longwave radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_down_lw_rad_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_lw_rad_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_lw_rad_flx', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='longwave radiation', &
+        defaultShortName='lw_flux', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: direct visible sw radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dir_rad_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_vis_dir_rad_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_vis_dir_rad_flx', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='direct visible sw radiation', &
+        defaultShortName='sw_flux_vis_dir', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: diffuse visible sw radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dif_rad_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_vis_dif_rad_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_vis_dif_rad_flx', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='diffuse visible sw radiation', &
+        defaultShortName='sw_flux_vis_dif', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: direct near IR sw radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dir_rad_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_ir_dir_rad_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_ir_dir_rad_flx', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='direct near IR sw radiation', &
+        defaultShortName='sw_flux_nir_dir', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: direct near IR sw radiation
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dif_rad_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_ir_dif_rad_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_ir_dif_rad_flx', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='direct near IR sw radiation', &
+        defaultShortName='sw_flux_nir_dif', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: mass flux of liquid precip
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: mean_prec_rate
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_prec_rate', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_prec_rate', &
+        canonicalUnits='kg/m^2/s', &
+        defaultLongName='mass flux of liquid precip', &
+        defaultShortName='lprec', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: mass flux of frozen precip
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_fprec_rate
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_fprec_rate', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_fprec_rate', &
+        canonicalUnits='kg/m^2/s', &
+        defaultLongName='mass flux of frozen precip', &
+        defaultShortName='fprec', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: mass flux of liquid runoff
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_runoff_rate
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_runoff_rate', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_runoff_rate', &
+        canonicalUnits='kg/m^2/s', &
+        defaultLongName='mass flux of liquid runoff', &
+        defaultShortName='runoff', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: mass flux of frozen runoff
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_calving_rate
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_calving_rate', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_calving_rate', &
+        canonicalUnits='kg/m^2/s', &
+        defaultLongName='mass flux of frozen runoff', &
+        defaultShortName='calving', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: heat flux, relative to 0C, of liquid land water into ocean
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_runoff_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_runoff_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_runoff_flx', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='heat flux, relative to 0C, of liquid land water into ocean', &
+        defaultShortName='runoff_hflx', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: heat flux, relative to 0C, of frozen land water into ocean
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mean_calving_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_calving_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_calving_flx', &
+        canonicalUnits='W/m^2', &
+        defaultLongName='heat flux, relative to 0C, of frozen land water into ocean', &
+        defaultShortName='calving_hflx', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: pressure of overlying sea ice and atmosphere
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: inst_pres_height_surface
+    if(.not. NUOPC_FieldDictionaryHasEntry('inst_pres_height_surface', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='inst_pres_height_surface', &
+        canonicalUnits='Pa', &
+        defaultLongName='pressure of overlying sea ice and atmosphere', &
+        defaultShortName='p', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! importable field: mass of overlying sea ice (optional)
+    ! Available from GSM atmosphere model: NO
+    ! Corresponding GSM atmosphere output field name: mi
+    if(.not. NUOPC_FieldDictionaryHasEntry('mi', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mi', &
+        canonicalUnits='kg', &
+        defaultLongName='mass of overlying sea ice (optional)', &
+        defaultShortName='mi', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+  end subroutine MOM5_BuildImportFieldDictionary
+  
+  subroutine MOM5_AdvertiseExportFields(exportState, gridOut, Ocean_sfc, rc)
+
+    type(ESMF_State), intent(inout)             :: exportState
+    type(ESMF_Grid), intent(in)                 :: gridOut
+    type(ocean_public_type), intent(in)         :: Ocean_sfc
+    integer, intent(inout)                      :: rc
+
+    type(ESMF_Field)                            :: field
+    
+    rc = ESMF_SUCCESS
+
+
+    call NUOPC_StateAdvertiseField(exportState, standardName='sea_surface_temperature', &
+      name='sea_surface_temperature', &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+
+
+    call NUOPC_StateAdvertiseField(exportState, standardName='s_surf', &
+      name='s_surf', &
+      rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-  end subroutine MOM5_RealizeImportFields
-!-----------------------------------------------------------------------------------------
+
+
+    call NUOPC_StateAdvertiseField(exportState, standardName='u_surf', &
+      name='u_surf', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(exportState, standardName='v_surf', &
+      name='v_surf', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+
+    call NUOPC_StateAdvertiseField(exportState, standardName='sea_lev', &
+      name='sea_lev', &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+
+  end subroutine MOM5_AdvertiseExportFields
+  
   subroutine MOM5_RealizeExportFields(exportState, gridOut, Ocean_sfc, rc)
 
     type(ESMF_State), intent(inout)             :: exportState
@@ -834,54 +1948,46 @@ module mom_cap_mod
 
     ! exportable field: sea surface temperature on t-cell
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: 
-    if(.not. NUOPC_FieldDictionaryHasEntry('t_surf', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='t_surf', &
-        canonicalUnits='K', &
-        defaultLongName='sea surface temperature on t-cell', &
-        defaultShortName='t_surf', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
+    ! Corresponding GSM atmosphere output field name: sea_surface_temperature
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridOut, &
       farrayPtr=Ocean_sfc%t_surf, &
-      name="t_surf", rc=rc)
+      name="sea_surface_temperature", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='t_surf', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: sea surface salinity on t-cell
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: 
-    if(.not. NUOPC_FieldDictionaryHasEntry('s_surf', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='s_surf', &
-        canonicalUnits='psu', &
-        defaultLongName='sea surface salinity on t-cell', &
-        defaultShortName='s_surf', rc=rc)
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="sea_surface_temperature")) then
+      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("export Field sea_surface_temperature is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ocean_sfc%t_surf = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(exportState, (/"sea_surface_temperature"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
+    ! exportable field: sea surface salinity on t-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: s_surf
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridOut, &
       farrayPtr=Ocean_sfc%s_surf, &
@@ -891,33 +1997,36 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='s_surf', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: i-directed surface ocean velocity on u-cell
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: 
-    if(.not. NUOPC_FieldDictionaryHasEntry('u_surf', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='u_surf', &
-        canonicalUnits='m/s', &
-        defaultLongName='i-directed surface ocean velocity on u-cell', &
-        defaultShortName='u_surf', rc=rc)
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="s_surf")) then
+      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("export Field s_surf is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ocean_sfc%s_surf = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(exportState, (/"s_surf"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
+    ! exportable field: i-directed surface ocean velocity on u-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: u_surf
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridOut, &
       farrayPtr=Ocean_sfc%u_surf, &
@@ -927,33 +2036,36 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='u_surf', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: j-directed surface ocean velocity on u-cell
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: 
-    if(.not. NUOPC_FieldDictionaryHasEntry('v_surf', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='v_surf', &
-        canonicalUnits='m/s', &
-        defaultLongName='j-directed surface ocean velocity on u-cell', &
-        defaultShortName='v_surf', rc=rc)
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="u_surf")) then
+      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("export Field u_surf is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ocean_sfc%u_surf = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(exportState, (/"u_surf"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
+    ! exportable field: j-directed surface ocean velocity on u-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: v_surf
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridOut, &
       farrayPtr=Ocean_sfc%v_surf, &
@@ -963,33 +2075,36 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='v_surf', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: sea level
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: 
-    if(.not. NUOPC_FieldDictionaryHasEntry('sea_lev', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='sea_lev', &
-        canonicalUnits='m', &
-        defaultLongName='sea level', &
-        defaultShortName='sea_lev', rc=rc)
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="v_surf")) then
+      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("export Field v_surf is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ocean_sfc%v_surf = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(exportState, (/"v_surf"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
 
+    ! exportable field: sea level
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: sea_lev
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridOut, &
       farrayPtr=Ocean_sfc%sea_lev, &
@@ -999,19 +2114,121 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    call NUOPC_StateAdvertiseField(exportState, standardName='sea_lev', &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="sea_lev")) then
+      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      call ESMF_LogWrite("export Field sea_lev is not connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! Initialize the value in the pointer to 0
+      ! The values will stay 0. non-connected Fields for GSM->MOM5 coupling.
+      Ocean_sfc%sea_lev = 0.0
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(exportState, (/"sea_lev"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
 
   end subroutine MOM5_RealizeExportFields
+  
+  subroutine MOM5_BuildExportFieldDictionary(rc)
 
+    integer, intent(inout)                      :: rc
+
+    rc = ESMF_SUCCESS
+
+
+    ! exportable field: sea surface temperature on t-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: sea_surface_temperature
+    if(.not. NUOPC_FieldDictionaryHasEntry('sea_surface_temperature', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='sea_surface_temperature', &
+        canonicalUnits='K', &
+        defaultLongName='sea surface temperature on t-cell', &
+        defaultShortName='t_surf', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! exportable field: sea surface salinity on t-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: s_surf
+    if(.not. NUOPC_FieldDictionaryHasEntry('s_surf', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='s_surf', &
+        canonicalUnits='psu', &
+        defaultLongName='sea surface salinity on t-cell', &
+        defaultShortName='s_surf', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! exportable field: i-directed surface ocean velocity on u-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: u_surf
+    if(.not. NUOPC_FieldDictionaryHasEntry('u_surf', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='u_surf', &
+        canonicalUnits='m/s', &
+        defaultLongName='i-directed surface ocean velocity on u-cell', &
+        defaultShortName='u_surf', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! exportable field: j-directed surface ocean velocity on u-cell
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: v_surf
+    if(.not. NUOPC_FieldDictionaryHasEntry('v_surf', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='v_surf', &
+        canonicalUnits='m/s', &
+        defaultLongName='j-directed surface ocean velocity on u-cell', &
+        defaultShortName='v_surf', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+
+    ! exportable field: sea level
+    ! Available from GSM atmosphere model: YES
+    ! Corresponding GSM atmosphere output field name: sea_lev
+    if(.not. NUOPC_FieldDictionaryHasEntry('sea_lev', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='sea_lev', &
+        canonicalUnits='m', &
+        defaultLongName='sea level', &
+        defaultShortName='sea_lev', &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+  end subroutine MOM5_BuildExportFieldDictionary
+  
 end module mom_cap_mod
