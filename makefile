@@ -1,9 +1,9 @@
-SRCDIR=/home/Fei.Liu/noscrub/20130801/NEMS.trunk30111-working/src/
+SRCDIR=/home/Fei.Liu/NEMS/src
 include $(SRCDIR)/conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCS = -I/home/Fei.Liu/MOM5/mom-5.0.2/exec/zeus/lib_FMS -I/home/Fei.Liu/MOM5/mom-5.0.2/exec/zeus/lib_ocean/
+UTILINCS = -I/home/Fei.Liu/github/mom/exec/zeus/lib_FMS -I/home/Fei.Liu/github/mom/exec/zeus/lib_ocean/
 
 LIBRARY  = libmom.a
 
@@ -13,12 +13,15 @@ MODULES_STUB  =
 
 DEPEND_FILES = ${MODULES:.o=.F90}
 
+installdir := $(shell date '+%Y-%m-%d-%H-%M-%S')
+
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
 $(LIBRARY): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $?
+	mkdir /home/Fei.Liu/OCN-INSTALLS/$(installdir) && sed -e 's/timestr/$(installdir)/g' mom5.mk.template > mom5.mk.install && cp libmom.a mom_cap_mod.mod /home/Fei.Liu/OCN-INSTALLS/$(installdir) && cp mom5.mk.install /home/Fei.Liu/OCN-INSTALLS/$(installdir)/mom5.mk
 	cp libmom.a mom5.mk mom_cap_mod.mod /home/Fei.Liu/mom5nems
 	
 $(MODULES): %.o: %.f90
