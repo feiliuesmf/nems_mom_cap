@@ -61,6 +61,7 @@ module mom_cap_mod
   end type
 
   integer   :: import_slice = 1
+  integer   :: export_slice = 1
 
   contains
   !-----------------------------------------------------------------------
@@ -520,27 +521,23 @@ module mom_cap_mod
 
     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
-    call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
-
-    call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
-
-    call writeSliceFields(importState, (/ &
-      "u_flux"          ,&
-      "v_flux"          ,&
-      "t_flux"          ,&
-      "q_flux"          ,&
-      "lw_flux"         ,&
-      "sw_flux_vis_dir" ,&
-      "sw_flux_vis_dif" ,&
-      "sw_flux_nir_dir" ,&
-      "sw_flux_nir_dif" ,&
-      "lprec"           ,&
-      "p"              /), import_slice, rc=rc) 
+    call writeSliceFields(importState, 'field_ocn_import_', import_slice, rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     import_slice = import_slice + 1
+
+    call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
+
+    call writeSliceFields(exportState, 'field_ocn_export_', export_slice, rc=rc) 
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    export_slice = export_slice + 1
+
+    call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
     !write(*,*) 'MOM: --- run phase called ---'
 
@@ -602,21 +599,21 @@ module mom_cap_mod
 
       Time_next = Time + Time_step_coupled
 
-      call data_override('OCN', 't_flux',          x%t_flux         , Time_next)
-      call data_override('OCN', 'u_flux',          x%u_flux         , Time_next)
-      call data_override('OCN', 'v_flux',          x%v_flux         , Time_next)
-      call data_override('OCN', 'q_flux',          x%q_flux         , Time_next)
-      call data_override('OCN', 'salt_flux',       x%salt_flux      , Time_next)
-      call data_override('OCN', 'lw_flux',         x%lw_flux        , Time_next)
-      call data_override('OCN', 'sw_flux_vis_dir', x%sw_flux_vis_dir, Time_next)
-      call data_override('OCN', 'sw_flux_vis_dif', x%sw_flux_vis_dif, Time_next)
-      call data_override('OCN', 'sw_flux_nir_dir', x%sw_flux_nir_dir, Time_next)
-      call data_override('OCN', 'sw_flux_nir_dif', x%sw_flux_nir_dif, Time_next)
-      call data_override('OCN', 'lprec',           x%lprec          , Time_next)
-      call data_override('OCN', 'fprec',           x%fprec          , Time_next)
-      call data_override('OCN', 'runoff',          x%runoff         , Time_next)
-      call data_override('OCN', 'calving',         x%calving        , Time_next)
-      call data_override('OCN', 'p',               x%p              , Time_next)
+      !call data_override('OCN', 't_flux',          x%t_flux         , Time_next)
+      !call data_override('OCN', 'u_flux',          x%u_flux         , Time_next)
+      !call data_override('OCN', 'v_flux',          x%v_flux         , Time_next)
+      !call data_override('OCN', 'q_flux',          x%q_flux         , Time_next)
+      !call data_override('OCN', 'salt_flux',       x%salt_flux      , Time_next)
+      !call data_override('OCN', 'lw_flux',         x%lw_flux        , Time_next)
+      !call data_override('OCN', 'sw_flux_vis_dir', x%sw_flux_vis_dir, Time_next)
+      !call data_override('OCN', 'sw_flux_vis_dif', x%sw_flux_vis_dif, Time_next)
+      !call data_override('OCN', 'sw_flux_nir_dir', x%sw_flux_nir_dir, Time_next)
+      !call data_override('OCN', 'sw_flux_nir_dif', x%sw_flux_nir_dif, Time_next)
+      !call data_override('OCN', 'lprec',           x%lprec          , Time_next)
+      !call data_override('OCN', 'fprec',           x%fprec          , Time_next)
+      !call data_override('OCN', 'runoff',          x%runoff         , Time_next)
+      !call data_override('OCN', 'calving',         x%calving        , Time_next)
+      !call data_override('OCN', 'p',               x%p              , Time_next)
             
   end subroutine ice_ocn_bnd_from_data
 
@@ -686,22 +683,36 @@ module mom_cap_mod
   return
   end subroutine external_coupler_mpi_exit
 !-----------------------------------------------------------------------------------------
-    subroutine writeSliceFields(state, fieldNameList, slice, rc)
+    subroutine writeSliceFields(state, filename_prefix, slice, rc)
       type(ESMF_State)                :: state
-      character(len=*)                :: fieldNameList(:)
+      character(len=*)                :: filename_prefix
       integer                         :: slice
       integer, intent(out), optional  :: rc
 
-      integer                         :: n
+      integer                         :: n, nfields
       type(ESMF_Field)                :: field
       type(ESMF_StateItem_Flag)       :: itemType
       character(len=40)               :: fileName
-      character(len=*),parameter :: subname='(module_MEDIATOR:writeSliceFields)'
+      character(len=64),allocatable   :: fieldNameList(:)
+      character(len=*),parameter :: subname='(mom_cap:writeSliceFields)'
 
       if (present(rc)) rc = ESMF_SUCCESS
       
       if (ESMF_IO_PIO_PRESENT .and. &
         (ESMF_IO_NETCDF_PRESENT .or. ESMF_IO_PNETCDF_PRESENT)) then
+
+        call ESMF_StateGet(state, itemCount=nfields, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        allocate(fieldNameList(nfields))
+        call ESMF_StateGet(state, itemNameList=fieldNameList, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+
         do n=1, size(fieldNameList)
           call ESMF_StateGet(state, itemName=fieldNameList(n), &
             itemType=itemType, rc=rc)
@@ -719,7 +730,7 @@ module mom_cap_mod
               return  ! bail out
             ! -> output to file
             write (fileName,"(A)") &
-              "field_med_atm_"//trim(fieldNameList(n))//".nc"
+              filename_prefix//trim(fieldNameList(n))//".nc"
             call ESMF_FieldWrite(field, file=trim(fileName), &
               timeslice=slice, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -728,7 +739,12 @@ module mom_cap_mod
               call ESMF_Finalize(endflag=ESMF_END_ABORT)
           endif
         enddo
+
+        deallocate(fieldNameList)
+
       endif
+
+
     end subroutine writeSliceFields
 
   subroutine MOM5_AdvertiseImportFields(importState, gridIn, Ice_ocean_boundary, rc)
