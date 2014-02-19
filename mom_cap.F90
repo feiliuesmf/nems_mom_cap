@@ -759,7 +759,7 @@ module mom_cap_mod
     rc = ESMF_SUCCESS
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_zonal_compt_moment_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_zonal_moment_flx', &
       longname='i-directed wind stress into ocean', &
       shortname='u_flux', &
       name='u_flux', &
@@ -771,7 +771,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_merid_compt_moment_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_merid_moment_flx', &
       longname='j-directed wind stress into ocean', &
       shortname='v_flux', &
       name='v_flux', &
@@ -819,7 +819,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_lw_rad_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_lw_flx', &
       longname='longwave radiation', &
       shortname='lw_flux', &
       name='lw_flux', &
@@ -831,7 +831,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_vis_dir_rad_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_vis_dir_flx', &
       longname='direct visible sw radiation', &
       shortname='sw_flux_vis_dir', &
       name='sw_flux_vis_dir', &
@@ -843,7 +843,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_vis_dif_rad_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_vis_dif_flx', &
       longname='diffuse visible sw radiation', &
       shortname='sw_flux_vis_dif', &
       name='sw_flux_vis_dif', &
@@ -855,7 +855,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_ir_dir_rad_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_ir_dir_flx', &
       longname='direct near IR sw radiation', &
       shortname='sw_flux_nir_dir', &
       name='sw_flux_nir_dir', &
@@ -867,7 +867,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_ir_dif_rad_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_down_sw_ir_dif_flx', &
       longname='direct near IR sw radiation', &
       shortname='sw_flux_nir_dif', &
       name='sw_flux_nir_dif', &
@@ -989,7 +989,7 @@ module mom_cap_mod
 
     ! importable field: i-directed wind stress into ocean
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_zonal_compt_moment_flx
+    ! Corresponding GSM atmosphere output field name: mean_zonal_moment_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%u_flux, &
@@ -1005,7 +1005,7 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_LogWrite("import Field mean_zonal_compt_moment_flx/u_flux is connected.", &
+      call ESMF_LogWrite("import Field mean_zonal_moment_flx/u_flux is connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1015,7 +1015,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_zonal_compt_moment_flx/u_flux is not connected.", &
+      call ESMF_LogWrite("import Field mean_zonal_moment_flx/u_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1037,7 +1037,7 @@ module mom_cap_mod
 
     ! importable field: j-directed wind stress into ocean
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_merid_compt_moment_flx
+    ! Corresponding GSM atmosphere output field name: mean_merid_moment_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%v_flux, &
@@ -1053,7 +1053,7 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_LogWrite("import Field mean_merid_compt_moment_flx/v_flux is connected.", &
+      call ESMF_LogWrite("import Field mean_merid_moment_flx/v_flux is connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1063,7 +1063,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_merid_compt_moment_flx/v_flux is not connected.", &
+      call ESMF_LogWrite("import Field mean_merid_moment_flx/v_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1229,7 +1229,7 @@ module mom_cap_mod
 
     ! importable field: longwave radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_lw_rad_flx
+    ! Corresponding GSM atmosphere output field name: mean_down_lw_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%lw_flux, &
@@ -1245,7 +1245,7 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_LogWrite("import Field mean_down_lw_rad_flx/lw_flux is connected.", &
+      call ESMF_LogWrite("import Field mean_down_lw_flx/lw_flux is connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1255,7 +1255,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_lw_rad_flx/lw_flux is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_lw_flx/lw_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1277,7 +1277,7 @@ module mom_cap_mod
 
     ! importable field: direct visible sw radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dir_rad_flx
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dir_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%sw_flux_vis_dir, &
@@ -1293,7 +1293,7 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_LogWrite("import Field mean_down_sw_vis_dir_rad_flx/sw_flux_vis_dir is connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dir_flx/sw_flux_vis_dir is connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1303,7 +1303,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_sw_vis_dir_rad_flx/sw_flux_vis_dir is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dir_flx/sw_flux_vis_dir is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1325,7 +1325,7 @@ module mom_cap_mod
 
     ! importable field: diffuse visible sw radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dif_rad_flx
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dif_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%sw_flux_vis_dif, &
@@ -1341,7 +1341,7 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_LogWrite("import Field mean_down_sw_vis_dif_rad_flx/sw_flux_vis_dif is connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dif_flx/sw_flux_vis_dif is connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1351,7 +1351,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_sw_vis_dif_rad_flx/sw_flux_vis_dif is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_vis_dif_flx/sw_flux_vis_dif is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1373,7 +1373,7 @@ module mom_cap_mod
 
     ! importable field: direct near IR sw radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dir_rad_flx
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dir_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%sw_flux_nir_dir, &
@@ -1389,7 +1389,7 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_LogWrite("import Field mean_down_sw_ir_dir_rad_flx/sw_flux_nir_dir is connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dir_flx/sw_flux_nir_dir is connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1399,7 +1399,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_sw_ir_dir_rad_flx/sw_flux_nir_dir is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dir_flx/sw_flux_nir_dir is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1421,7 +1421,7 @@ module mom_cap_mod
 
     ! importable field: direct near IR sw radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dif_rad_flx
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dif_flx
     ! Wraps around the internal MOM5 Fortran array pointer
     field = ESMF_FieldCreate(grid=gridIn, &
       farrayPtr=Ice_ocean_boundary%sw_flux_nir_dif, &
@@ -1437,7 +1437,7 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_LogWrite("import Field mean_down_sw_ir_dif_rad_flx/sw_flux_nir_dif is connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dif_flx/sw_flux_nir_dif is connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1447,7 +1447,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_down_sw_ir_dif_rad_flx/sw_flux_nir_dif is not connected.", &
+      call ESMF_LogWrite("import Field mean_down_sw_ir_dif_flx/sw_flux_nir_dif is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1862,9 +1862,9 @@ module mom_cap_mod
 
     ! importable field: i-directed wind stress into ocean
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_zonal_compt_moment_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_zonal_compt_moment_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_zonal_compt_moment_flx', &
+    ! Corresponding GSM atmosphere output field name: mean_zonal_moment_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_zonal_moment_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_zonal_moment_flx', &
         canonicalUnits='Pa', &
         defaultLongName='i-directed wind stress into ocean', &
         defaultShortName='u_flux', &
@@ -1878,9 +1878,9 @@ module mom_cap_mod
 
     ! importable field: j-directed wind stress into ocean
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_merid_compt_moment_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_merid_compt_moment_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_merid_compt_moment_flx', &
+    ! Corresponding GSM atmosphere output field name: mean_merid_moment_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_merid_moment_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_merid_moment_flx', &
         canonicalUnits='Pa', &
         defaultLongName='j-directed wind stress into ocean', &
         defaultShortName='v_flux', &
@@ -1942,9 +1942,9 @@ module mom_cap_mod
 
     ! importable field: longwave radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_lw_rad_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_lw_rad_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_lw_rad_flx', &
+    ! Corresponding GSM atmosphere output field name: mean_down_lw_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_lw_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_lw_flx', &
         canonicalUnits='W/m^2', &
         defaultLongName='longwave radiation', &
         defaultShortName='lw_flux', &
@@ -1958,9 +1958,9 @@ module mom_cap_mod
 
     ! importable field: direct visible sw radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dir_rad_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_vis_dir_rad_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_vis_dir_rad_flx', &
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dir_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_vis_dir_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_vis_dir_flx', &
         canonicalUnits='W/m^2', &
         defaultLongName='direct visible sw radiation', &
         defaultShortName='sw_flux_vis_dir', &
@@ -1974,9 +1974,9 @@ module mom_cap_mod
 
     ! importable field: diffuse visible sw radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dif_rad_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_vis_dif_rad_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_vis_dif_rad_flx', &
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_vis_dif_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_vis_dif_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_vis_dif_flx', &
         canonicalUnits='W/m^2', &
         defaultLongName='diffuse visible sw radiation', &
         defaultShortName='sw_flux_vis_dif', &
@@ -1990,9 +1990,9 @@ module mom_cap_mod
 
     ! importable field: direct near IR sw radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dir_rad_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_ir_dir_rad_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_ir_dir_rad_flx', &
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dir_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_ir_dir_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_ir_dir_flx', &
         canonicalUnits='W/m^2', &
         defaultLongName='direct near IR sw radiation', &
         defaultShortName='sw_flux_nir_dir', &
@@ -2006,9 +2006,9 @@ module mom_cap_mod
 
     ! importable field: direct near IR sw radiation
     ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dif_rad_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_ir_dif_rad_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_ir_dif_rad_flx', &
+    ! Corresponding GSM atmosphere output field name: mean_down_sw_ir_dif_flx
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_down_sw_ir_dif_flx', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_down_sw_ir_dif_flx', &
         canonicalUnits='W/m^2', &
         defaultLongName='direct near IR sw radiation', &
         defaultShortName='sw_flux_nir_dif', &
@@ -2299,6 +2299,15 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      call ESMF_LogWrite("export Field s_surf/s_surf is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     else
       call ESMF_LogWrite("export Field s_surf/s_surf is not connected.", &
         ESMF_LOGMSG_INFO, &
@@ -2382,6 +2391,15 @@ module mom_cap_mod
 
     if (NUOPC_StateIsFieldConnected(exportState, fieldName="v_surf")) then
       call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_LogWrite("export Field v_surf/v_surf is connected.", &
+        ESMF_LOGMSG_INFO, &
+        line=__LINE__, &
+        file=__FILE__, &
+        rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
