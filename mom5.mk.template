@@ -1,4 +1,7 @@
 # ESMF self-describing build dependency makefile fragment
+# src location Zeus: /home/Fei.Liu/github/
+# MOM5 github location:  git@github.com:feiliuesmf/mom5.git mom5_github_revision
+# MOM5 CAP github location: git@github.com:feiliuesmf/nems_mom_cap.git mom5_cap_github_revision
 
 ESMF_DEP_FRONT     = mom_cap_mod
 ESMF_DEP_INCPATH   = /home/Fei.Liu/OCN-INSTALLS/timestr

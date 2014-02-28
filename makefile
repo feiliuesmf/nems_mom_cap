@@ -14,6 +14,7 @@ MODULES_STUB  =
 DEPEND_FILES = ${MODULES:.o=.F90}
 
 installdir := $(shell date '+%Y-%m-%d-%H-%M-%S')
+githead := $(shell git show-ref origin/master)
 
 
 all default: depend
@@ -21,7 +22,7 @@ all default: depend
 
 $(LIBRARY): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $?
-	mkdir /home/Fei.Liu/OCN-INSTALLS/$(installdir) && sed -e 's/timestr/$(installdir)/g' mom5.mk.template > mom5.mk.install && cp libmom.a mom_cap_mod.mod /home/Fei.Liu/OCN-INSTALLS/$(installdir) && cp mom5.mk.install /home/Fei.Liu/OCN-INSTALLS/$(installdir)/mom5.mk
+	mkdir /home/Fei.Liu/OCN-INSTALLS/$(installdir) && sed -e 's/timestr/$(installdir)/g' mom5.mk.template > mom5.mk.install && sed -e -i 's/mom5_cap_github_revision/$(githead)/g' mom5.mk.install && cp libmom.a mom_cap_mod.mod /home/Fei.Liu/OCN-INSTALLS/$(installdir) && cp mom5.mk.install /home/Fei.Liu/OCN-INSTALLS/$(installdir)/mom5.mk && rm mom5.mk.install
 	cp libmom.a mom5.mk mom_cap_mod.mod /home/Fei.Liu/mom5nems
 	
 $(MODULES): %.o: %.f90
