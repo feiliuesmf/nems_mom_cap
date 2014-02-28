@@ -521,7 +521,8 @@ module mom_cap_mod
 
     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
-    call writeSliceFields(importState, 'field_ocn_import_', import_slice, rc=rc) 
+    call NUOPC_StateWrite(importState, filePrefix='field_ocn_import_', &
+      timeslice=import_slice, rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -530,7 +531,8 @@ module mom_cap_mod
 
     call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
 
-    call writeSliceFields(exportState, 'field_ocn_export_', export_slice, rc=rc) 
+    call NUOPC_StateWrite(exportState, filePrefix='field_ocn_export_', &
+      timeslice=export_slice, rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
