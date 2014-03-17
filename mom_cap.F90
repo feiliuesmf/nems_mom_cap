@@ -35,6 +35,7 @@ module mom_cap_mod
   use time_manager_mod,         only: fms_get_calendar_type => get_calendar_type
   use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end
   use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
+  use ocean_model_mod,          only: ocean_model_data_get
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
   use ESMF
@@ -268,35 +269,6 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    !call ESMF_VMGet(vm, petCount=npet, rc=rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
-
-    ! create a Grid object for Fields
-    ! we are going to create a single tile tripolar grid from a gridspec
-    ! file. We also use the exact decomposition in MOM5 so that the Fields
-    ! created can wrap on the data pointers in internal part of MOM5
-    !gridIn = ESMF_GridCreate('grid_spec.nc', ESMF_FILEFORMAT_GRIDSPEC, &
-    !    (/6, 4/), isSphere=.true., coordNames=(/'gridlon_t', 'gridlat_t'/), &
-    !    addCornerStagger=.true., rc=rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
-
-    !gridIn = NUOPC_GridCreateSimpleXY( &
-    !  0._ESMF_KIND_R8, 5.75_ESMF_KIND_R8, &
-    !  -1.5_ESMF_KIND_R8, 2.0_ESMF_KIND_R8, &
-    !  100, 100, rc=rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
-
-    !gridOut = gridIn ! for now out same as in
-
     call MOM5_AdvertiseImportFields(importState, gridIn, ice_ocean_boundary, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -329,6 +301,11 @@ module mom_cap_mod
     type(ice_ocean_boundary_type), pointer :: Ice_ocean_boundary => NULL()
     type(ocean_internalstate_wrapper)      :: ocean_internalstate
     integer                                :: npet
+
+    integer                                :: i, j
+    real(ESMF_KIND_R8), allocatable        :: mask(:,:)
+    real(ESMF_KIND_R8), pointer            :: t_surf(:,:)
+    type(ESMF_Field)                       :: field_t_surf
     
     rc = ESMF_SUCCESS
 
@@ -377,6 +354,37 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     call MOM5_RealizeExportFields(exportState, gridOut, Ocean_sfc, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call ESMF_StateGet(exportState, itemName='t_surf', field=field_t_surf, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_FieldGet(field_t_surf, localDe=0, farrayPtr=t_surf, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    allocate(mask(lbound(t_surf, 1):ubound(t_surf, 1), &
+      lbound(t_surf, 2):ubound(t_surf, 2)) )
+    call ocean_model_data_get(Ocean_state, Ocean_sfc, 'mask', mask, &
+      lbound(t_surf, 1), lbound(t_surf, 2))
+
+    do j = lbound(t_surf, 2), ubound(t_surf, 2)
+      do i = lbound(t_surf, 1), ubound(t_surf, 1)
+        if(mask(i,j) == 0.) t_surf(i,j) = 0.0
+      enddo
+    enddo
+
+    deallocate(mask)
+
+    call NUOPC_StateWrite(exportState, filePrefix='init_field_ocn_export_', &
+      timeslice=1, rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -2228,7 +2236,7 @@ module mom_cap_mod
 
     type(ESMF_State), intent(inout)             :: exportState
     type(ESMF_Grid), intent(in)                 :: gridOut
-    type(ocean_public_type), intent(in)         :: Ocean_sfc
+    type(ocean_public_type), intent(inout)      :: Ocean_sfc
     integer, intent(inout)                      :: rc
 
     type(ESMF_Field)                            :: field
