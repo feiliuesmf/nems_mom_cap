@@ -1219,8 +1219,8 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_laten_heat_flx', &
-      longname='specific humidity flux', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_evap_rate', &
+      longname='mean evaporation rate', &
       shortname='q_flux', &
       name='q_flux', &
       rc=rc)
@@ -1573,7 +1573,7 @@ module mom_cap_mod
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_LogWrite("import Field mean_laten_heat_flx/q_flux is connected.", &
+      call ESMF_LogWrite("import Field mean_evap_rate/q_flux is connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -1583,7 +1583,7 @@ module mom_cap_mod
         file=__FILE__)) &
         return  ! bail out
     else
-      call ESMF_LogWrite("import Field mean_laten_heat_flx/q_flux is not connected.", &
+      call ESMF_LogWrite("import Field mean_evap_rate/q_flux is not connected.", &
         ESMF_LOGMSG_INFO, &
         line=__LINE__, &
         file=__FILE__, &
@@ -2335,10 +2335,10 @@ module mom_cap_mod
     ! importable field: specific humidity flux
     ! Available from GSM atmosphere model: YES
     ! Corresponding GSM atmosphere output field name: mean_laten_heat_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_laten_heat_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_laten_heat_flx', &
+    if(.not. NUOPC_FieldDictionaryHasEntry('mean_evap_rate', rc=rc)) then
+      call NUOPC_FieldDictionaryAddEntry(standardName='mean_evap_rate', &
         canonicalUnits='kg/m^2/s', &
-        defaultLongName='specific humidity flux', &
+        defaultLongName='mean evaporation rate', &
         defaultShortName='q_flux', &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
