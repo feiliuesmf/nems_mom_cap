@@ -1,9 +1,17 @@
-SRCDIR=/home/Fei.Liu/NEMS/src
+
+SRCDIR=/home/$(USER)/NEMS/src
+#installdate=latest
+installdate := $(shell date '+%Y-%m-%d-%H-%M-%S')
+INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_$(installdate)
+NEMSMOMGITDIR=/home/Fei.Liu/github/mom
+NEMSMOMDIR=/home/Fei.Liu/MOM5/mom-5.0.2/exec/zeus
+
 include $(SRCDIR)/conf/configure.nems
 
-MAKEFILE = makefile
+PWDDIR := $(shell pwd)
+UTILINCS = -I$(NEMSMOMDIR)/lib_FMS -I$(NEMSMOMDIR)/lib_ocean
 
-UTILINCS = -I/home/Fei.Liu/github/mom/exec/zeus/lib_FMS -I/home/Fei.Liu/github/mom/exec/zeus/lib_ocean/
+MAKEFILE = makefile
 
 LIBRARY  = libmom.a
 
@@ -13,9 +21,10 @@ MODULES_STUB  =
 
 DEPEND_FILES = ${MODULES:.o=.F90}
 
-installdir := $(shell date '+%Y-%m-%d-%H-%M-%S')
-capgithead := $(shell git show-ref origin/master| cut -f1 -d' ')
-mom5githead := $(shell cd ../mom/ && git show-ref origin/master | cut -f1 -d' ' && cd ../nems_mom_cap/)
+capgitname  := $(shell git remote -v | grep origin | head -1 | cut -f2 | cut -f1 -d " " )
+capgithead  := $(shell git show-ref origin/master| cut -f1 -d " ")
+momgitname  := $(shell cd $(NEMSMOMGITDIR) && git remote -v | grep origin | head -1 | cut -f2 | cut -f1 -d " "  && cd $(PWDDIR) )
+momgithead  := $(shell cd $(NEMSMOMGITDIR) && git show-ref origin/master | cut -f1 -d " " && cd $(PWDDIR) )
 
 
 all default: depend
@@ -23,9 +32,21 @@ all default: depend
 
 $(LIBRARY): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $?
-	sed -e 's/timestr/$(installdir)/g' mom5.mk.template > mom5.mk.install && sed -i -e 's/mom5_github_revision/$(mom5githead)/g' mom5.mk.install && sed -i -e 's/mom5_cap_github_revision/$(capgithead)/g' mom5.mk.install && mkdir /home/Fei.Liu/OCN-INSTALLS/$(installdir) && cp libmom.a mom_cap_mod.mod /home/Fei.Liu/OCN-INSTALLS/$(installdir) && cp mom5.mk.install /home/Fei.Liu/OCN-INSTALLS/$(installdir)/mom5.mk && rm mom5.mk.install
-	cp libmom.a mom5.mk mom_cap_mod.mod /home/Fei.Liu/mom5nems
-	
+
+	rm -f mom5.mk.install
+	@echo "# ESMF self-describing build dependency makefile fragment" > mom5.mk.install
+	@echo "# src location Zeus: $pwd" >> mom5.mk.install
+	@echo "# MOM github location:  $(momgitname) $(momgithead)" >> mom5.mk.install
+	@echo "# MOM CAP github location: $(capgitname) $(capgithead)" >> mom5.mk.install
+	@echo  >> mom5.mk.install
+	@echo "ESMF_DEP_FRONT     = mom_cap_mod" >> mom5.mk.install
+	@echo "ESMF_DEP_INCPATH   = $(INSTALLDIR)" >> mom5.mk.install
+	@echo "ESMF_DEP_CMPL_OBJS = " >> mom5.mk.install
+	@echo "ESMF_DEP_LINK_OBJS = $(INSTALLDIR)/libmom.a $(NEMSMOMDIR)/lib_ocean/lib_ocean.a $(NEMSMOMDIR)/lib_FMS/lib_FMS.a" >> mom5.mk.install
+	mkdir -p $(INSTALLDIR)
+	cp -f libmom.a mom_cap_mod.mod $(INSTALLDIR)
+	cp -f mom5.mk.install $(INSTALLDIR)/mom5.mk
+
 $(MODULES): %.o: %.f90
 	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
 

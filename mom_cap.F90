@@ -569,6 +569,7 @@ module mom_cap_mod
     type(ESMF_Time)                        :: currTime
     character(len=64)                      :: timestamp
 
+    write(*,*) 'MOM: --- finalize called ---'
     rc = ESMF_SUCCESS
 
     call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
