@@ -120,18 +120,6 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    call MOM5_BuildImportFieldDictionary(rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call MOM5_BuildExportFieldDictionary(rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
   end subroutine
 
   subroutine InitializeP1(gcomp, importState, exportState, clock, rc)
@@ -1084,93 +1072,6 @@ module mom_cap_mod
 
   end subroutine MOM5_RealizeExportFields
   
-  subroutine MOM5_BuildExportFieldDictionary(rc)
-
-    integer, intent(inout)                      :: rc
-
-    rc = ESMF_SUCCESS
-
-
-    ! exportable field: sea surface temperature on t-cell
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: sea_surface_temperature
-    if(.not. NUOPC_FieldDictionaryHasEntry('sea_surface_temperature', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='sea_surface_temperature', &
-        canonicalUnits='K', &
-        defaultLongName='sea surface temperature on t-cell', &
-        defaultShortName='t_surf', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! exportable field: sea surface salinity on t-cell
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: s_surf
-    if(.not. NUOPC_FieldDictionaryHasEntry('s_surf', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='s_surf', &
-        canonicalUnits='psu', &
-        defaultLongName='sea surface salinity on t-cell', &
-        defaultShortName='s_surf', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! exportable field: i-directed surface ocean velocity on u-cell
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: u_surf
-    if(.not. NUOPC_FieldDictionaryHasEntry('u_surf', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='u_surf', &
-        canonicalUnits='m/s', &
-        defaultLongName='i-directed surface ocean velocity on u-cell', &
-        defaultShortName='u_surf', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! exportable field: j-directed surface ocean velocity on u-cell
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: v_surf
-    if(.not. NUOPC_FieldDictionaryHasEntry('v_surf', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='v_surf', &
-        canonicalUnits='m/s', &
-        defaultLongName='j-directed surface ocean velocity on u-cell', &
-        defaultShortName='v_surf', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! exportable field: sea level
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: sea_lev
-    if(.not. NUOPC_FieldDictionaryHasEntry('sea_lev', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='sea_lev', &
-        canonicalUnits='m', &
-        defaultLongName='sea level', &
-        defaultShortName='sea_lev', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-  end subroutine MOM5_BuildExportFieldDictionary
 
   subroutine MOM5_AdvertiseImportFields(importState, gridIn, Ice_ocean_boundary, rc)
 
@@ -1232,7 +1133,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_salt_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_salt_rate', &
       longname='salt flux into ocean', &
       shortname='salt_flux', &
       name='salt_flux', &
@@ -1352,7 +1253,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_runoff_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_runoff_heat_flx', &
       longname='heat flux, relative to 0C, of liquid land water into ocean', &
       shortname='runoff_hflx', &
       name='runoff_hflx', &
@@ -1364,7 +1265,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mean_calving_flx', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mean_calving_heat_flx', &
       longname='heat flux, relative to 0C, of frozen land water into ocean', &
       shortname='calving_hflx', &
       name='calving_hflx', &
@@ -1388,7 +1289,7 @@ module mom_cap_mod
 
 
 
-    call NUOPC_StateAdvertiseField(importState, standardName='mi', &
+    call NUOPC_StateAdvertiseField(importState, standardName='mass_of_overlying_sea_ice', &
       longname='mass of overlying sea ice (optional)', &
       shortname='mi', &
       name='mi', &
@@ -2278,300 +2179,5 @@ module mom_cap_mod
 
   end subroutine MOM5_RealizeImportFields
   
-  subroutine MOM5_BuildImportFieldDictionary(rc)
 
-    integer, intent(inout)                      :: rc
-
-    rc = ESMF_SUCCESS
-
-
-    ! importable field: i-directed wind stress into ocean
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_zonal_moment_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_zonal_moment_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_zonal_moment_flx', &
-        canonicalUnits='Pa', &
-        defaultLongName='i-directed wind stress into ocean', &
-        defaultShortName='u_flux', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: j-directed wind stress into ocean
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_merid_moment_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_merid_moment_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_merid_moment_flx', &
-        canonicalUnits='Pa', &
-        defaultLongName='j-directed wind stress into ocean', &
-        defaultShortName='v_flux', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: sensible heat flux into the ocean
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_sensi_heat_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_sensi_heat_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_sensi_heat_flx', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='sensible heat flux into the ocean', &
-        defaultShortName='t_flux', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: specific humidity flux
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_laten_heat_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_evap_rate', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_evap_rate', &
-        canonicalUnits='kg/m^2/s', &
-        defaultLongName='mean evaporation rate', &
-        defaultShortName='q_flux', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: salt flux into ocean
-    ! Available from GSM atmosphere model: NO
-    ! Corresponding GSM atmosphere output field name: mean_salt_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_salt_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_salt_flx', &
-        canonicalUnits='kg/m^2/s', &
-        defaultLongName='salt flux into ocean', &
-        defaultShortName='salt_flux', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: longwave radiation
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_net_lw_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_net_lw_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_net_lw_flx', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='longwave radiation', &
-        defaultShortName='lw_flux', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: direct visible sw radiation
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_net_sw_vis_dir_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_net_sw_vis_dir_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_net_sw_vis_dir_flx', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='direct visible sw radiation', &
-        defaultShortName='sw_flux_vis_dir', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: diffuse visible sw radiation
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_net_sw_vis_dif_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_net_sw_vis_dif_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_net_sw_vis_dif_flx', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='diffuse visible sw radiation', &
-        defaultShortName='sw_flux_vis_dif', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: direct near IR sw radiation
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_net_sw_ir_dir_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_net_sw_ir_dir_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_net_sw_ir_dir_flx', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='direct near IR sw radiation', &
-        defaultShortName='sw_flux_nir_dir', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: direct near IR sw radiation
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_net_sw_ir_dif_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_net_sw_ir_dif_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_net_sw_ir_dif_flx', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='direct near IR sw radiation', &
-        defaultShortName='sw_flux_nir_dif', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: mass flux of liquid precip
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: mean_prec_rate
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_prec_rate', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_prec_rate', &
-        canonicalUnits='kg/m^2/s', &
-        defaultLongName='mass flux of liquid precip', &
-        defaultShortName='lprec', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: mass flux of frozen precip
-    ! Available from GSM atmosphere model: NO
-    ! Corresponding GSM atmosphere output field name: mean_fprec_rate
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_fprec_rate', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_fprec_rate', &
-        canonicalUnits='kg/m^2/s', &
-        defaultLongName='mass flux of frozen precip', &
-        defaultShortName='fprec', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: mass flux of liquid runoff
-    ! Available from GSM atmosphere model: NO
-    ! Corresponding GSM atmosphere output field name: mean_runoff_rate
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_runoff_rate', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_runoff_rate', &
-        canonicalUnits='kg/m^2/s', &
-        defaultLongName='mass flux of liquid runoff', &
-        defaultShortName='runoff', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: mass flux of frozen runoff
-    ! Available from GSM atmosphere model: NO
-    ! Corresponding GSM atmosphere output field name: mean_calving_rate
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_calving_rate', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_calving_rate', &
-        canonicalUnits='kg/m^2/s', &
-        defaultLongName='mass flux of frozen runoff', &
-        defaultShortName='calving', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: heat flux, relative to 0C, of liquid land water into ocean
-    ! Available from GSM atmosphere model: NO
-    ! Corresponding GSM atmosphere output field name: mean_runoff_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_runoff_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_runoff_flx', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='heat flux, relative to 0C, of liquid land water into ocean', &
-        defaultShortName='runoff_hflx', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: heat flux, relative to 0C, of frozen land water into ocean
-    ! Available from GSM atmosphere model: NO
-    ! Corresponding GSM atmosphere output field name: mean_calving_flx
-    if(.not. NUOPC_FieldDictionaryHasEntry('mean_calving_flx', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mean_calving_flx', &
-        canonicalUnits='W/m^2', &
-        defaultLongName='heat flux, relative to 0C, of frozen land water into ocean', &
-        defaultShortName='calving_hflx', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: pressure of overlying sea ice and atmosphere
-    ! Available from GSM atmosphere model: YES
-    ! Corresponding GSM atmosphere output field name: inst_pres_height_surface
-    if(.not. NUOPC_FieldDictionaryHasEntry('inst_pres_height_surface', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='inst_pres_height_surface', &
-        canonicalUnits='Pa', &
-        defaultLongName='pressure of overlying sea ice and atmosphere', &
-        defaultShortName='p', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-
-    ! importable field: mass of overlying sea ice (optional)
-    ! Available from GSM atmosphere model: NO
-    ! Corresponding GSM atmosphere output field name: mi
-    if(.not. NUOPC_FieldDictionaryHasEntry('mi', rc=rc)) then
-      call NUOPC_FieldDictionaryAddEntry(standardName='mi', &
-        canonicalUnits='kg', &
-        defaultLongName='mass of overlying sea ice (optional)', &
-        defaultShortName='mi', &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-  end subroutine MOM5_BuildImportFieldDictionary
-  
 end module mom_cap_mod
