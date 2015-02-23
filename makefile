@@ -3,8 +3,10 @@ SRCDIR=/home/$(USER)/NEMS/src
 #installdate=latest
 installdate := $(shell date '+%Y-%m-%d-%H-%M-%S')
 INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_$(installdate)
-NEMSMOMGITDIR=/home/Fei.Liu/github/mom
-NEMSMOMDIR=/home/Fei.Liu/MOM5/mom-5.0.2/exec/zeus
+#NEMSMOMGITDIR=/home/Fei.Liu/github/mom
+#NEMSMOMDIR=/home/Fei.Liu/MOM5/mom-5.0.2/exec/zeus
+NEMSMOMGITDIR=/home/Anthony.Craig/mom
+NEMSMOMDIR=/home/Anthony.Craig/OCN-INSTALLS/mom_20150222
 
 include $(SRCDIR)/conf/configure.nems
 
