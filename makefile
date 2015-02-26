@@ -1,17 +1,26 @@
-
-SRCDIR=/home/$(USER)/NEMS/src
-#installdate=latest
-installdate := $(shell date '+%Y-%m-%d-%H-%M-%S')
+# User must customize the following two make variables
 INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_$(installdate)
-#NEMSMOMGITDIR=/home/Fei.Liu/github/mom
-#NEMSMOMDIR=/home/Fei.Liu/MOM5/mom-5.0.2/exec/zeus
-NEMSMOMGITDIR=/home/Anthony.Craig/mom
-NEMSMOMDIR=/home/Anthony.Craig/OCN-INSTALLS/mom_20150222
+NEMSMOMDIR=/home/Fei.Liu/github/mom/exec/zeus
 
-include $(SRCDIR)/conf/configure.nems
+installdate := $(shell date '+%Y-%m-%d-%H-%M-%S')
+
+ifneq ($(origin ESMFMKFILE), environment)
+$(error Environment variable ESMFMKFILE was not set.)
+endif
+include         $(ESMFMKFILE)
+ESMF_INC        = $(ESMF_F90COMPILEPATHS)
+ESMF_LIB        = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
+UTILINCS        = -I$(NEMSMOMDIR)/lib_FMS -I$(NEMSMOMDIR)/lib_ocean -I.
+
+.SUFFIXES: .F90
+
+%.o : %.F90
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(UTILINCS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $<
+mom_cap.o : time_utils.o
+
+.PRECIOUS: %.o
 
 PWDDIR := $(shell pwd)
-UTILINCS = -I$(NEMSMOMDIR)/lib_FMS -I$(NEMSMOMDIR)/lib_ocean
 
 MAKEFILE = makefile
 
@@ -19,17 +28,7 @@ LIBRARY  = libmom.a
 
 MODULES  = mom_cap.o time_utils.o
 
-MODULES_STUB  = 
-
-DEPEND_FILES = ${MODULES:.o=.F90}
-
-capgitname  := $(shell git remote -v | grep origin | head -1 | cut -f2 | cut -f1 -d " " )
-capgithead  := $(shell git show-ref origin/master| cut -f1 -d " ")
-momgitname  := $(shell cd $(NEMSMOMGITDIR) && git remote -v | grep origin | head -1 | cut -f2 | cut -f1 -d " "  && cd $(PWDDIR) )
-momgithead  := $(shell cd $(NEMSMOMGITDIR) && git show-ref origin/master | cut -f1 -d " " && cd $(PWDDIR) )
-
-
-all default: depend
+all default:
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
 $(LIBRARY): $(MODULES)
@@ -38,8 +37,6 @@ $(LIBRARY): $(MODULES)
 	rm -f mom5.mk.install
 	@echo "# ESMF self-describing build dependency makefile fragment" > mom5.mk.install
 	@echo "# src location Zeus: $pwd" >> mom5.mk.install
-	@echo "# MOM github location:  $(momgitname) $(momgithead)" >> mom5.mk.install
-	@echo "# MOM CAP github location: $(capgitname) $(capgithead)" >> mom5.mk.install
 	@echo  >> mom5.mk.install
 	@echo "ESMF_DEP_FRONT     = mom_cap_mod" >> mom5.mk.install
 	@echo "ESMF_DEP_INCPATH   = $(INSTALLDIR)" >> mom5.mk.install
@@ -49,20 +46,5 @@ $(LIBRARY): $(MODULES)
 	cp -f libmom.a mom_cap_mod.mod $(INSTALLDIR)
 	cp -f mom5.mk.install $(INSTALLDIR)/mom5.mk
 
-$(MODULES): %.o: %.f90
-	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
-
-$(MODULES_STUB): %.o: %.f90
-	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
-
-stub: $(MODULES_STUB)
-	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_STUB)
-
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst depend
-
-MKDEPENDS = $(SRCDIR)/../exe/mkDepends.pl
-
-include $(SRCDIR)/conf/make.rules
-
-include depend
