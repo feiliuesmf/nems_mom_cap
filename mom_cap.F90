@@ -704,7 +704,7 @@ module mom_cap_mod
     deallocate(ofld)
 
     call NUOPC_StateWrite(exportState, filePrefix='init_field_ocn_export_', &
-      timeslice=1, rc=rc) 
+      timeslice=1, relaxedFlag=.true., rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -855,7 +855,7 @@ module mom_cap_mod
     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
     call NUOPC_StateWrite(importState, filePrefix='field_ocn_import_', &
-      timeslice=import_slice, rc=rc) 
+      timeslice=import_slice, relaxedFlag=.true., rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -885,7 +885,7 @@ module mom_cap_mod
     deallocate(ofld)
 
     call NUOPC_StateWrite(exportState, filePrefix='field_ocn_export_', &
-      timeslice=export_slice, rc=rc) 
+      timeslice=export_slice, relaxedFlag=.true., rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
