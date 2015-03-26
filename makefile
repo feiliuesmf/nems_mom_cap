@@ -1,5 +1,6 @@
 # User must customize the following two make variables
 INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_$(installdate)
+#INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_latest
 NEMSMOMDIR=/home/Fei.Liu/github/mom/exec/zeus
 
 installdate := $(shell date '+%Y-%m-%d-%H-%M-%S')
