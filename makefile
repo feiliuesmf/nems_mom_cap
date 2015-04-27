@@ -46,6 +46,7 @@ $(LIBRARY): $(MODULES)
 	mkdir -p $(INSTALLDIR)
 	cp -f libmom.a mom_cap_mod.mod $(INSTALLDIR)
 	cp -f mom5.mk.install $(INSTALLDIR)/mom5.mk
+	cp -f $(INSTALLDIR)/mom5.mk libmom.a mom_cap_mod.mod /home/$(USER)/OCN-INSTALLS/head/
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst depend

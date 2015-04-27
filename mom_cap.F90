@@ -126,12 +126,12 @@ module mom_cap_mod
     
     ! attach specializing method(s)
     ! No need to change clock settings
-    call ESMF_MethodAdd(gcomp, label=model_label_SetClock, &
-      userRoutine=SetClock, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    !call ESMF_MethodAdd(gcomp, label=model_label_SetClock, &
+    !  userRoutine=SetClock, rc=rc)
+    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    !  line=__LINE__, &
+    !  file=__FILE__)) &
+    !  return  ! bail out
     
     call ESMF_MethodAdd(gcomp, label=model_label_Advance, &
       userRoutine=ModelAdvance, rc=rc)
@@ -789,21 +789,9 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    call ESMF_TimeIntervalSet(timestep, m=60, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    call ESMF_ClockSet(clock, timestep=timestep, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-      
     ! initialize internal clock
     ! here: parent Clock and stability timeStep determine actual model timeStep
-    call ESMF_TimeIntervalSet(stabilityTimeStep, m=60, rc=rc) 
+    call ESMF_TimeIntervalSet(stabilityTimeStep, m=120, rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -874,12 +862,12 @@ module mom_cap_mod
     ! will come in by one internal timeStep advanced. This goes until the
     ! stopTime of the internal Clock has been reached.
     
-    !call NUOPC_ClockPrintCurrTime(clock, &
-    !  "------>Advancing OCN from: ", rc=rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
+    call NUOPC_ClockPrintCurrTime(clock, &
+      "------>Advancing OCN from: ", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
     
     call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -887,12 +875,12 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     
-    !call NUOPC_TimePrint(currTime + timeStep, &
-    !  "--------------------------------> to: ", rc=rc)
-    !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    !  line=__LINE__, &
-    !  file=__FILE__)) &
-    !  return  ! bail out
+    call NUOPC_TimePrint(currTime + timeStep, &
+      "--------------------------------> to: ", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
     call ESMF_TimeIntervalGet(timeStep, h=dth, m=dtm, s=dts, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1325,8 +1313,8 @@ module mom_cap_mod
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocean_mask", "will provide")
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "sea_surface_temperature", "will provide", data=Ocean_sfc%t_surf)
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "s_surf"    , "will provide", data=Ocean_sfc%s_surf )
-    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "u_surf"    , "will provide", data=Ocean_sfc%u_surf )
-    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "v_surf"    , "will provide", data=Ocean_sfc%v_surf )
+    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_zonal"    , "will provide", data=Ocean_sfc%u_surf )
+    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_merid"    , "will provide", data=Ocean_sfc%v_surf )
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "sea_lev"   , "will provide", data=Ocean_sfc%sea_lev)
 
   end subroutine MOM_FieldsSetup
