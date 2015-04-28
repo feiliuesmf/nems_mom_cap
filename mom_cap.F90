@@ -314,7 +314,7 @@ module mom_cap_mod
     type (ocean_state_type),       pointer :: Ocean_state => NULL()
     type(ice_ocean_boundary_type), pointer :: Ice_ocean_boundary => NULL()
     type(ocean_internalstate_wrapper)      :: ocean_internalstate
-    integer                                :: npet, ntiles, ntilesy
+    integer                                :: npet, ntiles
     integer                                :: nxg, nyg, cnt
     integer                                :: isc,iec,jsc,jec
     integer, allocatable                   :: xb(:),xe(:),yb(:),ye(:),pe(:)
@@ -407,7 +407,6 @@ module mom_cap_mod
     allocate(petMap(ntiles))
     allocate(deLabelList(ntiles))
 
-    ntilesy = 0
     do n = 1, ntiles
        deLabelList(n) = n
        deBlockList(1,1,n) = xb(n)
@@ -422,71 +421,30 @@ module mom_cap_mod
        ! write(tmpstr,'(a,2i8)') subname//' pe  = ',n,petMap(n)
        ! call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
        !--- assume a tile with starting index of 1 has an equivalent wraparound tile on the other side
-       if (xb(n) == 1) ntilesy = ntilesy + 1
     enddo
 
     delayout = ESMF_DELayoutCreate(petMap, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-    allocate(connectionList(ntilesy*2))
-    ntilesy = 0
-    do n = 1, ntiles
-       if (deBlockList(1,1,n) == 1) then
-          n1 = 0
-          found = .false.
-          do while (n1 < ntiles .and. .not.found)
-             n1 = n1 + 1
-             if ((deBlockList(2,1,n1) == deBlockList(2,1,n)) .and. &
-                 (deBlockList(2,2,n1) == deBlockList(2,2,n)) .and. &
-                 (deBlockList(1,2,n1) == nxg)) then
-                found = .true.
-                write(tmpstr,'(a,10i6)') subname//' connlist = ',n,deBlockList(:,:,n),n1,deBlockList(:,:,n1)
-                call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-
-                ntilesy = ntilesy + 1
-                if (ntilesy > size(connectionList)) then
-                   rc=ESMF_FAILURE
-                   call ESMF_LogWrite(subname//' ntilesy blow out', ESMF_LOGMSG_ERROR, rc=dbrc)
-                   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-                endif
-                call ESMF_DistgridConnectionSet(connection=connectionList(ntilesy), &
-                   tileIndexA=n,tileIndexB=n1, &
-                   positionVector=(/nxg,0/), &
-                   rc=rc)
-                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-
-                ntilesy = ntilesy + 1
-                if (ntilesy > size(connectionList)) then
-                   rc=ESMF_FAILURE
-                   call ESMF_LogWrite(subname//' ntilesy blow out', ESMF_LOGMSG_ERROR, rc=dbrc)
-                   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-                endif
-                call ESMF_DistgridConnectionSet(connection=connectionList(ntilesy), &
-                   tileIndexA=n1,tileIndexB=n, &
-                   positionVector=(/-nxg,0/), &
-                   rc=rc)
-                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-             endif
-          enddo  ! not found
-       endif  ! deBlockList(1,1,n)==1
-    enddo  ! ntiles
-
-    if (ntilesy /= size(connectionList)) then
-       rc=ESMF_FAILURE
-       call ESMF_LogWrite(subname//' ntilesy missing', ESMF_LOGMSG_ERROR, rc=dbrc)
-       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-    endif
+    allocate(connectionList(1))
+    call ESMF_DistGridConnectionSet(connectionList(1), tileIndexA=1, &
+      tileIndexB=1, positionVector=(/nxg, 0/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
     distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/nxg,nyg/), &
 !        indexflag = ESMF_INDEX_DELOCAL, &
         deBlockList=deBlockList, &
 !        deLabelList=deLabelList, &
         delayout=delayout, &
-!        connectionList=connectionList, &
+        connectionList=connectionList, &
         rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
     deallocate(xb,xe,yb,ye,pe)
+    deallocate(connectionList)
     deallocate(deLabelList)
     deallocate(deBlockList)
     deallocate(petMap)
@@ -505,6 +463,7 @@ module mom_cap_mod
     !---------------------------------
 
     gridIn = ESMF_GridCreate(distgrid=distgrid, &
+       gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,1/), &
        coordSys = ESMF_COORDSYS_SPH_DEG, &
        rc = rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
@@ -1297,7 +1256,7 @@ module mom_cap_mod
 
   !!! fld_list_add(num, fldlist, stdname, transferOffer, data(optional), shortname(optional))
 
-!--------- import fields to Sea Ice -------------
+!--------- import fields -------------
 
 ! tcraig, don't point directly into mom data YET (last field is optional in interface)
 ! instead, create space for the field when it's "realized".
@@ -1320,13 +1279,13 @@ module mom_cap_mod
     call fld_list_add(fldsToOcn_num, fldsToOcn, "inst_pres_height_surface" , "will provide", data=Ice_ocean_boundary%p )
     call fld_list_add(fldsToOcn_num, fldsToOcn, "mass_of_overlying_sea_ice", "will provide", data=Ice_ocean_boundary%mi)
 
-!--------- export fields from Sea Ice -------------
+!--------- export fields -------------
 
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocean_mask", "will provide")
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "sea_surface_temperature", "will provide", data=Ocean_sfc%t_surf)
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "s_surf"    , "will provide", data=Ocean_sfc%s_surf )
-    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "u_surf"    , "will provide", data=Ocean_sfc%u_surf )
-    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "v_surf"    , "will provide", data=Ocean_sfc%v_surf )
+    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_zonal", "will provide", data=Ocean_sfc%u_surf )
+    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_merid", "will provide", data=Ocean_sfc%v_surf )
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "sea_lev"   , "will provide", data=Ocean_sfc%sea_lev)
 
   end subroutine MOM_FieldsSetup
