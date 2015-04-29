@@ -36,10 +36,10 @@ module mom_cap_mod
   use time_manager_mod,         only: date_to_string
   use time_manager_mod,         only: fms_get_calendar_type => get_calendar_type
   use ocean_domains_mod,        only: get_local_indices, get_global_indices, get_domain_offsets
-  use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end
+  use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end, get_ocean_grid
   use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
   use ocean_model_mod,          only: ocean_model_data_get
-  use ocean_types_mod,          only: ice_ocean_boundary_type
+  use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_grid_type
 
   use ESMF
   use NUOPC
@@ -828,9 +828,15 @@ module mom_cap_mod
     integer :: dth, dtm, dts, dt_cpld  = 86400
     integer :: isc,iec,jsc,jec,lbnd1,ubnd1,lbnd2,ubnd2
     integer :: i,j,i1,j1
-    real(ESMF_KIND_R8), allocatable        :: ofld(:,:)
+    real(ESMF_KIND_R8), allocatable        :: ofld(:,:), ocz(:,:), ocm(:,:)
+    real(ESMF_KIND_R8), allocatable        :: mmmf(:,:), mzmf(:,:)
     integer :: nc
     real(ESMF_KIND_R8), pointer :: dataPtr_mask(:,:)
+    real(ESMF_KIND_R8), pointer :: dataPtr_mmmf(:,:)
+    real(ESMF_KIND_R8), pointer :: dataPtr_mzmf(:,:)
+    real(ESMF_KIND_R8), pointer :: dataPtr_ocz(:,:)
+    real(ESMF_KIND_R8), pointer :: dataPtr_ocm(:,:)
+    type(ocean_grid_type), pointer :: Ocean_grid
     character(len=*),parameter  :: subname='(mom_cap:ModelAdvance)'
 
     rc = ESMF_SUCCESS
@@ -904,16 +910,42 @@ module mom_cap_mod
       return  ! bail out
     import_slice = import_slice + 1
 
-    call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
+    ! rotate the lat/lon wind vector (CW) onto local tripolar coordinate system
+
+    call mpp_get_compute_domain(Ocean_sfc%domain, isc, iec, jsc, jec)
 
     call State_getFldPtr(exportState,'ocean_mask',dataPtr_mask,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
 
-    call mpp_get_compute_domain(Ocean_sfc%domain, isc, iec, jsc, jec)
     lbnd1 = lbound(dataPtr_mask,1)
     ubnd1 = ubound(dataPtr_mask,1)
     lbnd2 = lbound(dataPtr_mask,2)
     ubnd2 = ubound(dataPtr_mask,2)
+
+    call get_ocean_grid(Ocean_grid)
+
+    call State_getFldPtr(importState,'mean_zonal_moment_flx',dataPtr_mzmf,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+    call State_getFldPtr(importState,'mean_merid_moment_flx',dataPtr_mmmf,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+
+    allocate(mzmf(lbnd1:ubnd1,lbnd2:ubnd2))
+    allocate(mmmf(lbnd1:ubnd1,lbnd2:ubnd2))
+    do j  = lbnd2, ubnd2
+      do i = lbnd1, ubnd1
+        j1 = j - lbnd2 + jsc  ! work around local vs global indexing
+        i1 = i - lbnd1 + isc
+        mzmf(i,j) = Ocean_grid%cos_rot(i1,j1)*dataPtr_mzmf(i,j) &
+                  + Ocean_grid%sin_rot(i1,j1)*dataPtr_mmmf(i,j)
+        mmmf(i,j) = Ocean_grid%cos_rot(i1,j1)*dataPtr_mzmf(i,j) &
+                  - Ocean_grid%sin_rot(i1,j1)*dataPtr_mmmf(i,j)
+      enddo
+    enddo
+    dataPtr_mzmf = mzmf
+    dataPtr_mmmf = mmmf
+    deallocate(mzmf, mmmf)
+
+    call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
     allocate(ofld(isc:iec,jsc:jec))
 
     call ocean_model_data_get(Ocean_state, Ocean_sfc, 'mask', ofld, isc, jsc)
@@ -925,6 +957,29 @@ module mom_cap_mod
     enddo
     enddo
     deallocate(ofld)
+
+    ! Now rotate ocn current from tripolar grid back to lat/lon grid (CCW)
+    allocate(ocz(lbnd1:ubnd1,lbnd2:ubnd2))
+    allocate(ocm(lbnd1:ubnd1,lbnd2:ubnd2))
+
+    call State_getFldPtr(exportState,'ocn_current_zonal',dataPtr_ocz,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+    call State_getFldPtr(exportState,'ocn_current_merid',dataPtr_ocm,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+
+    ocz = dataPtr_ocz
+    ocm = dataPtr_ocm
+    do j  = lbnd2, ubnd2
+      do i = lbnd1, ubnd1
+        j1 = j - lbnd2 + jsc  ! work around local vs global indexing
+        i1 = i - lbnd1 + isc
+        dataPtr_ocz(i,j) = Ocean_grid%cos_rot(i1,j1)*ocz(i,j) &
+                         - Ocean_grid%sin_rot(i1,j1)*ocm(i,j)
+        dataPtr_ocm(i,j) = Ocean_grid%cos_rot(i1,j1)*ocz(i,j) &
+                         + Ocean_grid%sin_rot(i1,j1)*ocm(i,j)
+      enddo
+    enddo
+    deallocate(ocz, ocm)
 
     call NUOPC_StateWrite(exportState, filePrefix='field_ocn_export_', &
       timeslice=export_slice, relaxedFlag=.true., rc=rc) 
