@@ -4,6 +4,7 @@
 #NEMSMOMDIR=/home/Fei.Liu/github/mom/exec/zeus
 #NEMSMOMDIR=/home/Gerhard.Theurich/OCN-INSTALLS/mom/exec/zeus
 
+
 installdate := $(shell date '+%Y-%m-%d-%H-%M-%S')
 
 ifneq ($(origin ESMFMKFILE), environment)
