@@ -1,8 +1,12 @@
 # User must customize the following two make variables
 INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_$(installdate)
-#INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_latest
-NEMSMOMDIR=/home/Fei.Liu/github/mom/exec/zeus
 
+NEMSMOMDIR=/home/Anthony.Craig/mom/exec/zeus
+#NEMSMOMDIR=/home/Fei.Liu/github/mom/exec/zeus
+#NEMSMOMDIR=/home/Gerhard.Theurich/OCN-INSTALLS/mom/exec/zeus
+
+
+#installdate := latest
 installdate := $(shell date '+%Y-%m-%d-%H-%M-%S')
 
 ifneq ($(origin ESMFMKFILE), environment)
@@ -35,6 +39,7 @@ all default:
 $(LIBRARY): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $?
 
+install: $(LIBRARY)
 	rm -f mom5.mk.install
 	@echo "# ESMF self-describing build dependency makefile fragment" > mom5.mk.install
 	@echo "# src location Zeus: $pwd" >> mom5.mk.install
@@ -42,11 +47,12 @@ $(LIBRARY): $(MODULES)
 	@echo "ESMF_DEP_FRONT     = mom_cap_mod" >> mom5.mk.install
 	@echo "ESMF_DEP_INCPATH   = $(INSTALLDIR)" >> mom5.mk.install
 	@echo "ESMF_DEP_CMPL_OBJS = " >> mom5.mk.install
-	@echo "ESMF_DEP_LINK_OBJS = $(INSTALLDIR)/libmom.a $(NEMSMOMDIR)/lib_ocean/lib_ocean.a $(NEMSMOMDIR)/lib_FMS/lib_FMS.a" >> mom5.mk.install
+	@echo "ESMF_DEP_LINK_OBJS = $(INSTALLDIR)/libmom.a $(INSTALLDIR)/lib_ocean.a $(INSTALLDIR)/lib_FMS.a" >> mom5.mk.install
 	mkdir -p $(INSTALLDIR)
+	cp -f $(NEMSMOMDIR)/lib_ocean/lib_ocean.a $(INSTALLDIR)
+	cp -f $(NEMSMOMDIR)/lib_FMS/lib_FMS.a $(INSTALLDIR)
 	cp -f libmom.a mom_cap_mod.mod $(INSTALLDIR)
 	cp -f mom5.mk.install $(INSTALLDIR)/mom5.mk
-	cp -f $(INSTALLDIR)/mom5.mk libmom.a mom_cap_mod.mod /home/$(USER)/OCN-INSTALLS/head/
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst depend
