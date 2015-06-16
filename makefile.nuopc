@@ -1,12 +1,10 @@
 # User must customize the following two make variables
-INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_$(installdate)
-
-NEMSMOMDIR=/home/Anthony.Craig/mom/exec/zeus
+#INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_$(installdate)
+#INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_latest
 #NEMSMOMDIR=/home/Fei.Liu/github/mom/exec/zeus
 #NEMSMOMDIR=/home/Gerhard.Theurich/OCN-INSTALLS/mom/exec/zeus
 
 
-#installdate := latest
 installdate := $(shell date '+%Y-%m-%d-%H-%M-%S')
 
 ifneq ($(origin ESMFMKFILE), environment)
@@ -27,7 +25,7 @@ mom_cap.o : time_utils.o
 
 PWDDIR := $(shell pwd)
 
-MAKEFILE = makefile
+MAKEFILE = makefile.nuopc
 
 LIBRARY  = libmom.a
 

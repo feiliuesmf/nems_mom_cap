@@ -43,10 +43,11 @@ module mom_cap_mod
 
   use ESMF
   use NUOPC
-  use NUOPC_Model, only: &
+  use NUOPC_Model, &
     model_routine_SS      => SetServices, &
     model_label_SetClock  => label_SetClock, &
-    model_label_Advance   => label_Advance
+    model_label_Advance   => label_Advance, &
+    model_label_Finalize  => label_Finalize
 
   use time_utils_mod
 
@@ -99,33 +100,48 @@ module mom_cap_mod
     rc = ESMF_SUCCESS
     
     ! the NUOPC model component will register the generic methods
-    call model_routine_SS(gcomp, rc=rc)
+    call NUOPC_CompDerive(gcomp, model_routine_SS, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     
-    ! set entry point for methods that require specific implementation
+    ! switching to IPD versions
     call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
-      userRoutine=InitializeP1, phase=1, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
-      userRoutine=InitializeP2, phase=2, rc=rc)
+      userRoutine=InitializeP0, phase=0, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
 
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, &
-      userRoutine=ocean_model_finalize, rc=rc)
+    ! set entry point for methods that require specific implementation
+    call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
+      phaseLabelList=(/"IPDv01p1"/), userRoutine=InitializeAdvertise, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
+      phaseLabelList=(/"IPDv01p3"/), userRoutine=InitializeRealize, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     
+    ! attach specializing method(s)
+    call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Advance, &
+      specRoutine=ModelAdvance, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Finalize, &
+      specRoutine=ocean_model_finalize, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
     ! attach specializing method(s)
     ! No need to change clock settings
     !call ESMF_MethodAdd(gcomp, label=model_label_SetClock, &
@@ -135,16 +151,31 @@ module mom_cap_mod
     !  file=__FILE__)) &
     !  return  ! bail out
     
-    call ESMF_MethodAdd(gcomp, label=model_label_Advance, &
-      userRoutine=ModelAdvance, rc=rc)
+  end subroutine SetServices
+
+  !-----------------------------------------------------------------------------
+
+  subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
+    type(ESMF_GridComp)   :: gcomp
+    type(ESMF_State)      :: importState, exportState
+    type(ESMF_Clock)      :: clock
+    integer, intent(out)  :: rc
+    
+    rc = ESMF_SUCCESS
+
+    ! Switch to IPDv01 by filtering all other phaseMap entries
+    call NUOPC_CompFilterPhaseMap(gcomp, ESMF_METHOD_INITIALIZE, &
+      acceptStringList=(/"IPDv01p"/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+    
+  end subroutine
+  
+  !-----------------------------------------------------------------------------
 
-  end subroutine SetServices
-
-  subroutine InitializeP1(gcomp, importState, exportState, clock, rc)
+  subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
     type(ESMF_GridComp)                    :: gcomp
     type(ESMF_State)                       :: importState, exportState
@@ -174,7 +205,7 @@ module mom_cap_mod
     type(ESMF_Grid)                        :: gridOut
 
     integer                                :: npet, npet_x, npet_y
-    character(len=*),parameter  :: subname='(mom_cap:InitializeP1)'
+    character(len=*),parameter  :: subname='(mom_cap:InitializeAdvertise)'
 
     rc = ESMF_SUCCESS
 
@@ -293,13 +324,13 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    write(*,*) '----- MOM5 initialization phase 1 completed'
+    write(*,*) '----- MOM5 initialization phase Advertise completed'
 
-  end subroutine InitializeP1
+  end subroutine InitializeAdvertise
   
   !-----------------------------------------------------------------------------
 
-  subroutine InitializeP2(gcomp, importState, exportState, clock, rc)
+  subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
     type(ESMF_GridComp)  :: gcomp
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
@@ -338,7 +369,7 @@ module mom_cap_mod
     real(ESMF_KIND_R8), pointer            :: dataPtr_xcor(:,:)
     real(ESMF_KIND_R8), pointer            :: dataPtr_ycor(:,:)
     type(ESMF_Field)                       :: field_t_surf
-    character(len=*),parameter  :: subname='(mom_cap:InitializeP2)'
+    character(len=*),parameter  :: subname='(mom_cap:InitializeRealize)'
     
     rc = ESMF_SUCCESS
 
@@ -727,9 +758,9 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    write(*,*) '----- MOM5 initialization phase 2 completed'
+    write(*,*) '----- MOM5 initialization phase Realize completed'
 
-  end subroutine InitializeP2
+  end subroutine InitializeRealize
   
   !-----------------------------------------------------------------------------
 
@@ -985,12 +1016,10 @@ module mom_cap_mod
 
   end subroutine ModelAdvance
 
-  subroutine ocean_model_finalize(gcomp, importState, exportState, clock, rc)
+  subroutine ocean_model_finalize(gcomp, rc)
 
     ! input arguments
     type(ESMF_GridComp)  :: gcomp
-    type(ESMF_State)     :: importState, exportState
-    type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
     
     ! local variables
@@ -998,6 +1027,7 @@ module mom_cap_mod
     type (ocean_state_type),       pointer :: Ocean_state
     type(ocean_internalstate_wrapper)      :: ocean_internalstate
     type(TIME_TYPE)                        :: Time        
+    type(ESMF_Clock)                       :: clock
     type(ESMF_Time)                        :: currTime
     character(len=64)                      :: timestamp
     character(len=*),parameter  :: subname='(mom_cap:ocean_model_finalize)'
@@ -1013,6 +1043,12 @@ module mom_cap_mod
 
     Ocean_sfc          => ocean_internalstate%ptr%ocean_public_type_ptr
     Ocean_state        => ocean_internalstate%ptr%ocean_state_type_ptr
+
+    call NUOPC_ModelGet(gcomp, modelClock=clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
     call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
