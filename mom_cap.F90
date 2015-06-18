@@ -986,33 +986,33 @@ module mom_cap_mod
     call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
     !write(*,*) 'MOM: --- run phase called ---'
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_zonal_moment_flx", "will provide", data=Ice_ocean_boundary%u_flux)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_merid_moment_flx", "will provide", data=Ice_ocean_boundary%v_flux)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_sensi_heat_flx"  , "will provide", data=Ice_ocean_boundary%t_flux)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_evap_rate"       , "will provide", data=Ice_ocean_boundary%q_flux)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_salt_rate"       , "will provide", data=Ice_ocean_boundary%salt_flux)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_lw_flx"      , "will provide", data=Ice_ocean_boundary%lw_flux  )
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_sw_vis_dir_flx", "will provide", data=Ice_ocean_boundary%sw_flux_vis_dir)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_sw_vis_dif_flx", "will provide", data=Ice_ocean_boundary%sw_flux_vis_dif)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_sw_ir_dir_flx" , "will provide", data=Ice_ocean_boundary%sw_flux_nir_dir)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_sw_ir_dif_flx" , "will provide", data=Ice_ocean_boundary%sw_flux_nir_dif)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_prec_rate"       , "will provide", data=Ice_ocean_boundary%lprec  )
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_fprec_rate"      , "will provide", data=Ice_ocean_boundary%fprec  )
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_runoff_rate"     , "will provide", data=Ice_ocean_boundary%runoff )
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_calving_rate"    , "will provide", data=Ice_ocean_boundary%calving)
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_runoff_heat_flx" , "will provide", data=Ice_ocean_boundary%runoff_hflx )
-    call dumpMomInternal(mom_grid_i, import_slice, "mean_calving_heat_flx", "will provide", data=Ice_ocean_boundary%calving_hflx)
-    call dumpMomInternal(mom_grid_i, import_slice, "inst_pres_height_surface" , "will provide", data=Ice_ocean_boundary%p )
-    call dumpMomInternal(mom_grid_i, import_slice, "mass_of_overlying_sea_ice", "will provide", data=Ice_ocean_boundary%mi)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_zonal_moment_flx", "will provide", Ice_ocean_boundary%u_flux)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_merid_moment_flx", "will provide", Ice_ocean_boundary%v_flux)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_sensi_heat_flx"  , "will provide", Ice_ocean_boundary%t_flux)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_evap_rate"       , "will provide", Ice_ocean_boundary%q_flux)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_salt_rate"       , "will provide", Ice_ocean_boundary%salt_flux)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_lw_flx"      , "will provide", Ice_ocean_boundary%lw_flux  )
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_sw_vis_dir_flx", "will provide", Ice_ocean_boundary%sw_flux_vis_dir)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_sw_vis_dif_flx", "will provide", Ice_ocean_boundary%sw_flux_vis_dif)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_sw_ir_dir_flx" , "will provide", Ice_ocean_boundary%sw_flux_nir_dir)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_net_sw_ir_dif_flx" , "will provide", Ice_ocean_boundary%sw_flux_nir_dif)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_prec_rate"       , "will provide", Ice_ocean_boundary%lprec  )
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_fprec_rate"      , "will provide", Ice_ocean_boundary%fprec  )
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_runoff_rate"     , "will provide", Ice_ocean_boundary%runoff )
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_calving_rate"    , "will provide", Ice_ocean_boundary%calving)
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_runoff_heat_flx" , "will provide", Ice_ocean_boundary%runoff_hflx )
+    call dumpMomInternal(mom_grid_i, import_slice, "mean_calving_heat_flx", "will provide", Ice_ocean_boundary%calving_hflx)
+    call dumpMomInternal(mom_grid_i, import_slice, "inst_pres_height_surface" , "will provide", Ice_ocean_boundary%p )
+    call dumpMomInternal(mom_grid_i, import_slice, "mass_of_overlying_sea_ice", "will provide", Ice_ocean_boundary%mi)
 
 !--------- export fields -------------
 
-    call dumpMomInternal(mom_grid_i, export_slice, "ocean_mask", "will provide")
-    call dumpMomInternal(mom_grid_i, export_slice, "sea_surface_temperature", "will provide", data=Ocean_sfc%t_surf)
-    call dumpMomInternal(mom_grid_i, export_slice, "s_surf"    , "will provide", data=Ocean_sfc%s_surf )
-    call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_zonal", "will provide", data=Ocean_sfc%u_surf )
-    call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_merid", "will provide", data=Ocean_sfc%v_surf )
-    call dumpMomInternal(mom_grid_i, export_slice, "sea_lev"   , "will provide", data=Ocean_sfc%sea_lev)
+    call dumpMomInternal(mom_grid_i, export_slice, "ocean_mask", "will provide", dataPtr_mask)
+    call dumpMomInternal(mom_grid_i, export_slice, "sea_surface_temperature", "will provide", Ocean_sfc%t_surf)
+    call dumpMomInternal(mom_grid_i, export_slice, "s_surf"    , "will provide", Ocean_sfc%s_surf )
+    call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_zonal", "will provide", Ocean_sfc%u_surf )
+    call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_merid", "will provide", Ocean_sfc%v_surf )
+    call dumpMomInternal(mom_grid_i, export_slice, "sea_lev"   , "will provide", Ocean_sfc%sea_lev)
 
   end subroutine ModelAdvance
 
@@ -1453,6 +1453,8 @@ module mom_cap_mod
     type(ESMF_Field)         :: field
     real(ESMF_KIND_R8), dimension(:,:), pointer  :: f2d
     integer                  :: rc
+
+    return ! nop in production mode
 
     field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, &
       indexflag=ESMF_INDEX_DELOCAL, &
