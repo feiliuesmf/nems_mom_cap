@@ -1,13 +1,9 @@
 !--------------- MOM5 Ocean solo model -----------------
-! This is the MOM5 ocean solo model component that's NUOPC compiant.
-! The public ocn_register method sets up all the model services such as
-! initialize, run and finalize.
+! This is the MOM5 ocean model cap
 !
 ! Author:  Fei.Liu@gmail.com
 !
 ! 5/10/13
-! This is now acting as a cap/connector between NUOPC driver and GFDL MOM5 code.
-! Right now it's working in solo ocean mode where it does not export/import any data
 !
 
 module mom_cap_mod
