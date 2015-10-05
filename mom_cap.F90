@@ -826,6 +826,7 @@ module mom_cap_mod
     real(ESMF_KIND_R8), pointer :: dataPtr_mzmf(:,:)
     real(ESMF_KIND_R8), pointer :: dataPtr_ocz(:,:)
     real(ESMF_KIND_R8), pointer :: dataPtr_ocm(:,:)
+    real(ESMF_KIND_R8), pointer :: dataPtr_frazil(:,:)
     type(ocean_grid_type), pointer :: Ocean_grid
     character(len=*),parameter  :: subname='(mom_cap:ModelAdvance)'
 
@@ -956,6 +957,10 @@ module mom_cap_mod
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
     call State_getFldPtr(exportState,'ocn_current_merid',dataPtr_ocm,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+    call State_getFldPtr(exportState,'freezing_melting_potential',dataPtr_frazil,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+
+    dataPtr_frazil = dataPtr_frazil/dt_cpld !convert from J/m^2 to W/m^2 for CICE coupling
 
     ocz = dataPtr_ocz
     ocm = dataPtr_ocm
