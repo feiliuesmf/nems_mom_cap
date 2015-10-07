@@ -827,6 +827,8 @@ module mom_cap_mod
     real(ESMF_KIND_R8), pointer :: dataPtr_ocz(:,:)
     real(ESMF_KIND_R8), pointer :: dataPtr_ocm(:,:)
     real(ESMF_KIND_R8), pointer :: dataPtr_frazil(:,:)
+    real(ESMF_KIND_R8), pointer :: dataPtr_evap(:,:)
+    real(ESMF_KIND_R8), pointer :: dataPtr_sensi(:,:)
     type(ocean_grid_type), pointer :: Ocean_grid
     character(len=*),parameter  :: subname='(mom_cap:ModelAdvance)'
 
@@ -919,6 +921,13 @@ module mom_cap_mod
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
     call State_getFldPtr(importState,'mean_merid_moment_flx',dataPtr_mmmf,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+    call State_getFldPtr(importState,'mean_evap_rate',dataPtr_evap,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+    call State_getFldPtr(importState,'mean_sensi_heat_flx',dataPtr_sensi,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+
+    dataPtr_evap = - dataPtr_evap
+    dataPtr_sensi = - dataPtr_sensi
 
     allocate(mzmf(lbnd1:ubnd1,lbnd2:ubnd2))
     allocate(mmmf(lbnd1:ubnd1,lbnd2:ubnd2))
