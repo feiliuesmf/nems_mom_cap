@@ -747,7 +747,7 @@ module mom_cap_mod
 
     deallocate(ofld)
 
-    call NUOPC_StateWrite(exportState, filePrefix='init_field_ocn_export_', &
+    call NUOPC_Write(exportState, filePrefix='init_field_ocn_export_', &
       timeslice=1, relaxedFlag=.true., rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -861,8 +861,8 @@ module mom_cap_mod
     ! will come in by one internal timeStep advanced. This goes until the
     ! stopTime of the internal Clock has been reached.
     
-    call NUOPC_ClockPrintCurrTime(clock, &
-      "------>Advancing OCN from: ", rc=rc)
+    call ESMF_ClockPrint(clock, options="currTime", &
+      preString="------>Advancing OCN from: ", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -874,8 +874,8 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     
-    call NUOPC_TimePrint(currTime + timeStep, &
-      "--------------------------------> to: ", rc=rc)
+    call ESMF_TimePrint(currTime + timeStep, &
+      preString="--------------------------------> to: ", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -895,7 +895,7 @@ module mom_cap_mod
 
     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
-    call NUOPC_StateWrite(importState, filePrefix='field_ocn_import_', &
+    call NUOPC_Write(importState, filePrefix='field_ocn_import_', &
       timeslice=import_slice, relaxedFlag=.true., rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -985,7 +985,7 @@ module mom_cap_mod
     enddo
     deallocate(ocz, ocm)
 
-    call NUOPC_StateWrite(exportState, filePrefix='field_ocn_export_', &
+    call NUOPC_Write(exportState, filePrefix='field_ocn_export_', &
       timeslice=export_slice, relaxedFlag=.true., rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1275,7 +1275,7 @@ module mom_cap_mod
 
     do i = 1, nfields
 
-      call NUOPC_StateAdvertiseField(state, &
+      call NUOPC_Advertise(state, &
         standardName=field_defs(i)%stdname, &
         name=field_defs(i)%shortname, &
         rc=rc)
@@ -1331,8 +1331,8 @@ module mom_cap_mod
           return  ! bail out
       endif
 
-      if (NUOPC_StateIsFieldConnected(state, fieldName=field_defs(i)%shortname)) then
-        call NUOPC_StateRealizeField(state, field=field, rc=rc)
+      if (NUOPC_IsConnected(state, fieldName=field_defs(i)%shortname)) then
+        call NUOPC_Realize(state, field=field, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
