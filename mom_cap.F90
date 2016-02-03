@@ -747,7 +747,7 @@ module mom_cap_mod
 
     deallocate(ofld)
 
-    call NUOPC_Write(exportState, filePrefix='init_field_ocn_export_', &
+    call NUOPC_Write(exportState, fileNamePrefix='init_field_ocn_export_', &
       timeslice=1, relaxedFlag=.true., rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -895,7 +895,7 @@ module mom_cap_mod
 
     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
-    call NUOPC_Write(importState, filePrefix='field_ocn_import_', &
+    call NUOPC_Write(importState, fileNamePrefix='field_ocn_import_', &
       timeslice=import_slice, relaxedFlag=.true., rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -985,7 +985,7 @@ module mom_cap_mod
     enddo
     deallocate(ocz, ocm)
 
-    call NUOPC_Write(exportState, filePrefix='field_ocn_export_', &
+    call NUOPC_Write(exportState, fileNamePrefix='field_ocn_export_', &
       timeslice=export_slice, relaxedFlag=.true., rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1222,7 +1222,7 @@ module mom_cap_mod
             ! -> output to file
             write (fileName,"(A)") &
               filename_prefix//trim(fieldNameList(n))//".nc"
-            call ESMF_FieldWrite(field, file=trim(fileName), &
+            call ESMF_FieldWrite(field, fileName=trim(fileName), &
               timeslice=slice, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, &
@@ -1483,7 +1483,7 @@ module mom_cap_mod
 
     f2d(:,:) = farray(:,:)
 
-    call ESMF_FieldWrite(field, file='field_ocn_internal_'//trim(stdname)//'.nc', &
+    call ESMF_FieldWrite(field, fileName='field_ocn_internal_'//trim(stdname)//'.nc', &
       timeslice=slice, rc=rc) 
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
