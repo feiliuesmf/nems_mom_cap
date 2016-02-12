@@ -81,6 +81,7 @@ module mom_cap_mod
   integer   :: dbrc
 
   type(ESMF_Grid), save :: mom_grid_i
+  logical :: write_diagnostics = .false.
 
   contains
   !-----------------------------------------------------------------------
@@ -833,6 +834,7 @@ module mom_cap_mod
     character(len=*),parameter  :: subname='(mom_cap:ModelAdvance)'
 
     rc = ESMF_SUCCESS
+    call ESMF_VMLogMemInfo("Entering MOM5 Model_ADVANCE: ")
     
     ! query the Component for its clock, importState and exportState
     call ESMF_GridCompGet(gcomp, clock=clock, importState=importState, &
@@ -895,13 +897,15 @@ module mom_cap_mod
 
     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
-    call NUOPC_Write(importState, fileNamePrefix='field_ocn_import_', &
-      timeslice=import_slice, relaxedFlag=.true., rc=rc) 
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    import_slice = import_slice + 1
+    if(write_diagnostics) then
+      call NUOPC_Write(importState, fileNamePrefix='field_ocn_import_', &
+        timeslice=import_slice, relaxedFlag=.true., rc=rc) 
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      import_slice = import_slice + 1
+    endif
 
     ! rotate the lat/lon wind vector (CW) onto local tripolar coordinate system
 
@@ -985,13 +989,15 @@ module mom_cap_mod
     enddo
     deallocate(ocz, ocm)
 
-    call NUOPC_Write(exportState, fileNamePrefix='field_ocn_export_', &
-      timeslice=export_slice, relaxedFlag=.true., rc=rc) 
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    export_slice = export_slice + 1
+    if(write_diagnostics) then
+      call NUOPC_Write(exportState, fileNamePrefix='field_ocn_export_', &
+        timeslice=export_slice, relaxedFlag=.true., rc=rc) 
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      export_slice = export_slice + 1
+    endif
 
     call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
@@ -1024,6 +1030,7 @@ module mom_cap_mod
     call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_merid", "will provide", Ocean_sfc%v_surf )
     call dumpMomInternal(mom_grid_i, export_slice, "sea_lev"   , "will provide", Ocean_sfc%sea_lev)
 
+    call ESMF_VMLogMemInfo("Leaving MOM5 Model_ADVANCE: ")
   end subroutine ModelAdvance
 
   subroutine ocean_model_finalize(gcomp, rc)
