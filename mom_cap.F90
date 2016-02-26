@@ -81,7 +81,7 @@ module mom_cap_mod
   integer   :: dbrc
 
   type(ESMF_Grid), save :: mom_grid_i
-  logical :: write_diagnostics = .false.
+  logical :: write_diagnostics = .true.
 
   contains
   !-----------------------------------------------------------------------
@@ -158,6 +158,8 @@ module mom_cap_mod
     type(ESMF_Clock)      :: clock
     integer, intent(out)  :: rc
     
+    character(len=10)                         :: value
+
     rc = ESMF_SUCCESS
 
     ! Switch to IPDv01 by filtering all other phaseMap entries
@@ -167,6 +169,13 @@ module mom_cap_mod
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+    call ESMF_AttributeGet(gcomp, name="DumpFields", value=value, defaultValue="true", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    write_diagnostics=(trim(value)=="true")
     
   end subroutine
   
