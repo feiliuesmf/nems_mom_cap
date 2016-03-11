@@ -82,6 +82,7 @@ module mom_cap_mod
 
   type(ESMF_Grid), save :: mom_grid_i
   logical :: write_diagnostics = .true.
+  logical :: profile_memory = .true.
 
   contains
   !-----------------------------------------------------------------------
@@ -176,6 +177,14 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     write_diagnostics=(trim(value)=="true")
+
+    call ESMF_AttributeGet(gcomp, name="ProfileMemory", value=value, defaultValue="true", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    profile_memory=(trim(value)/="false")
     
   end subroutine
   
@@ -843,7 +852,7 @@ module mom_cap_mod
     character(len=*),parameter  :: subname='(mom_cap:ModelAdvance)'
 
     rc = ESMF_SUCCESS
-    call ESMF_VMLogMemInfo("Entering MOM5 Model_ADVANCE: ")
+    if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM5 Model_ADVANCE: ")
     
     ! query the Component for its clock, importState and exportState
     call ESMF_GridCompGet(gcomp, clock=clock, importState=importState, &
@@ -958,7 +967,9 @@ module mom_cap_mod
     dataPtr_mmmf = mmmf
     deallocate(mzmf, mmmf)
 
+    if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM5 update_ocean_model: ")
     call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
+    if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM5 update_ocean_model: ")
     allocate(ofld(isc:iec,jsc:jec))
 
     call ocean_model_data_get(Ocean_state, Ocean_sfc, 'mask', ofld, isc, jsc)
@@ -1039,7 +1050,7 @@ module mom_cap_mod
     call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_merid", "will provide", Ocean_sfc%v_surf )
     call dumpMomInternal(mom_grid_i, export_slice, "sea_lev"   , "will provide", Ocean_sfc%sea_lev)
 
-    call ESMF_VMLogMemInfo("Leaving MOM5 Model_ADVANCE: ")
+    if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM5 Model_ADVANCE: ")
   end subroutine ModelAdvance
 
   subroutine ocean_model_finalize(gcomp, rc)
@@ -1481,7 +1492,7 @@ module mom_cap_mod
     real(ESMF_KIND_R8), dimension(:,:), pointer  :: f2d
     integer                  :: rc
 
-    return ! nop in production mode
+    if(.not. write_diagnostics) return ! nop in production mode
 
     field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, &
       indexflag=ESMF_INDEX_DELOCAL, &
