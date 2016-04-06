@@ -845,8 +845,8 @@ module mom_cap_mod
     real(ESMF_KIND_R8), pointer :: dataPtr_mzmf(:,:)
     real(ESMF_KIND_R8), pointer :: dataPtr_ocz(:,:)
     real(ESMF_KIND_R8), pointer :: dataPtr_ocm(:,:) 
-    real(ESMF_KIND_R8), pointer :: dataPtr_oci(:,:)
-    real(ESMF_KIND_R8), pointer :: dataPtr_ocj(:,:)
+!    real(ESMF_KIND_R8), pointer :: dataPtr_oci(:,:)
+!    real(ESMF_KIND_R8), pointer :: dataPtr_ocj(:,:)
     real(ESMF_KIND_R8), pointer :: dataPtr_frazil(:,:)
     real(ESMF_KIND_R8), pointer :: dataPtr_evap(:,:)
     real(ESMF_KIND_R8), pointer :: dataPtr_sensi(:,:)
@@ -992,10 +992,10 @@ module mom_cap_mod
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
     call State_getFldPtr(exportState,'ocn_current_merid',dataPtr_ocm,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
-    call State_getFldPtr(exportState,'ocn_current_idir',dataPtr_oci,rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
-    call State_getFldPtr(exportState,'ocn_current_jdir',dataPtr_ocj,rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+!    call State_getFldPtr(exportState,'ocn_current_idir',dataPtr_oci,rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+!    call State_getFldPtr(exportState,'ocn_current_jdir',dataPtr_ocj,rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
     call State_getFldPtr(exportState,'freezing_melting_potential',dataPtr_frazil,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
 
@@ -1011,8 +1011,8 @@ module mom_cap_mod
                          - Ocean_grid%sin_rot(i1,j1)*ocm(i,j)
         dataPtr_ocm(i,j) = Ocean_grid%cos_rot(i1,j1)*ocm(i,j) &
                          + Ocean_grid%sin_rot(i1,j1)*ocz(i,j)
-        dataPtr_oci(i,j) = ocz(i,j)
-        dataPtr_ocj(i,j) = ocm(i,j)
+!        dataPtr_oci(i,j) = ocz(i,j)
+!        dataPtr_ocj(i,j) = ocm(i,j)
       enddo
     enddo
     deallocate(ocz, ocm)
@@ -1056,8 +1056,8 @@ module mom_cap_mod
     call dumpMomInternal(mom_grid_i, export_slice, "s_surf"    , "will provide", Ocean_sfc%s_surf )
     call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_zonal", "will provide", Ocean_sfc%u_surf )
     call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_merid", "will provide", Ocean_sfc%v_surf )
-    call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_idir", "will provide", dataPtr_oci )
-    call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_jdir", "will provide", dataPtr_ocj )
+!    call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_idir", "will provide", dataPtr_oci )
+!    call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_jdir", "will provide", dataPtr_ocj )
     call dumpMomInternal(mom_grid_i, export_slice, "sea_lev"   , "will provide", Ocean_sfc%sea_lev)
 
     if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM5 Model_ADVANCE: ")
@@ -1443,8 +1443,8 @@ module mom_cap_mod
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "s_surf"    , "will provide", data=Ocean_sfc%s_surf )
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_zonal", "will provide", data=Ocean_sfc%u_surf )
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_merid", "will provide", data=Ocean_sfc%v_surf )
-    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_idir", "will provide")
-    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_jdir", "will provide")
+!    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_idir", "will provide")
+!    call fld_list_add(fldsFrOcn_num, fldsFrOcn, "ocn_current_jdir", "will provide")
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "sea_lev"   , "will provide", data=Ocean_sfc%sea_lev)
     call fld_list_add(fldsFrOcn_num, fldsFrOcn, "freezing_melting_potential"   , "will provide", data=Ocean_sfc%frazil)
 
