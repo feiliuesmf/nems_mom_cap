@@ -80,9 +80,10 @@ module mom_cap_mod
   character(len=256) :: tmpstr
   integer   :: dbrc
 
-  type(ESMF_Grid), save :: mom_grid_i
-  logical :: write_diagnostics = .true.
-  logical :: profile_memory = .true.
+  type(ESMF_Grid), save   :: mom_grid_i
+  logical                 :: write_diagnostics = .true.
+  logical                 :: profile_memory = .true.
+  integer(ESMF_KIND_I8)   :: restart_interval
 
   contains
   !-----------------------------------------------------------------------
@@ -185,6 +186,29 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     profile_memory=(trim(value)/="false")
+
+    ! Retrieve restart_interval in (seconds)
+    ! A restart_interval value of 0 means no restart will be written.
+    call ESMF_AttributeGet(gcomp, name="restart_interval", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    restart_interval = ESMF_UtilString2Int(value, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if(restart_interval < 0) then
+      call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
+        msg="MOM5_CAP: OCN attribute: restart_interval cannot be negative.", &
+        line=__LINE__, &
+        file=__FILE__, rcToReturn=rc)
+      return
+    endif
+    call ESMF_LogWrite('MOM5_CAP:restart_interval = '//trim(value), ESMF_LOGMSG_INFO, rc=dbrc)  
     
   end subroutine
   
@@ -824,6 +848,10 @@ module mom_cap_mod
     type(ESMF_State)                       :: importState, exportState
     type(ESMF_Time)                        :: currTime
     type(ESMF_TimeInterval)                :: timeStep
+    type(ESMF_Time)                        :: startTime
+    type(ESMF_TimeInterval)                :: time_elapsed
+    integer(ESMF_KIND_I8)                  :: n_interval, time_elapsed_sec
+    character(len=64)                      :: timestamp
 
     type (ocean_public_type),      pointer :: Ocean_sfc          => NULL()
     type (ocean_state_type),       pointer :: Ocean_state        => NULL()
@@ -833,6 +861,7 @@ module mom_cap_mod
     ! define some time types 
     type(time_type)                        :: Time        
     type(time_type)                        :: Time_step_coupled
+    type(time_type)                        :: Time_restart_current
 
     integer :: dth, dtm, dts, dt_cpld  = 86400
     integer :: isc,iec,jsc,jec,lbnd1,ubnd1,lbnd2,ubnd2
@@ -890,7 +919,7 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     
-    call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
+    call ESMF_ClockGet(clock, startTime=startTime, currTime=currTime, timeStep=timeStep, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -972,6 +1001,22 @@ module mom_cap_mod
     if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM5 update_ocean_model: ")
     call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
     if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM5 update_ocean_model: ")
+
+    !Optionally write restart files when currTime-startTime is integer multiples of restart_interval
+    if(restart_interval > 0 ) then
+      time_elapsed = currTime - startTime
+      call ESMF_TimeIntervalGet(time_elapsed, s_i8=time_elapsed_sec, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
+      n_interval = time_elapsed_sec / restart_interval
+      if(n_interval*restart_interval == time_elapsed_sec) then
+          time_restart_current = esmf2fms_time(currTime)
+          timestamp = date_to_string(time_restart_current)
+          call ESMF_LogWrite("MOM5: Writing restart at "//trim(timestamp), ESMF_LOGMSG_INFO, rc=dbrc)
+          write(*,*) 'calling ocean_model_restart'
+          call ocean_model_restart(Ocean_state, timestamp)
+      endif
+    endif
+
     allocate(ofld(isc:iec,jsc:jec))
 
     call ocean_model_data_get(Ocean_state, Ocean_sfc, 'mask', ofld, isc, jsc)
