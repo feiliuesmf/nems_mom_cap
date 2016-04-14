@@ -998,10 +998,6 @@ module mom_cap_mod
     dataPtr_mmmf = mmmf
     deallocate(mzmf, mmmf)
 
-    if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM5 update_ocean_model: ")
-    call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
-    if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM5 update_ocean_model: ")
-
     !Optionally write restart files when currTime-startTime is integer multiples of restart_interval
     if(restart_interval > 0 ) then
       time_elapsed = currTime - startTime
@@ -1016,6 +1012,10 @@ module mom_cap_mod
           call ocean_model_restart(Ocean_state, timestamp)
       endif
     endif
+
+    if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM5 update_ocean_model: ")
+    call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
+    if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM5 update_ocean_model: ")
 
     allocate(ofld(isc:iec,jsc:jec))
 
