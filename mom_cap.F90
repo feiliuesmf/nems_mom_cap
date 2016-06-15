@@ -1004,7 +1004,7 @@ module mom_cap_mod
       call ESMF_TimeIntervalGet(time_elapsed, s_i8=time_elapsed_sec, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
       n_interval = time_elapsed_sec / restart_interval
-      if(n_interval*restart_interval == time_elapsed_sec) then
+      if((n_interval .gt. 0) .and. (n_interval*restart_interval == time_elapsed_sec)) then
           time_restart_current = esmf2fms_time(currTime)
           timestamp = date_to_string(time_restart_current)
           call ESMF_LogWrite("MOM5: Writing restart at "//trim(timestamp), ESMF_LOGMSG_INFO, rc=dbrc)
