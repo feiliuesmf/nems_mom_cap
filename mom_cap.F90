@@ -497,9 +497,18 @@ module mom_cap_mod
 
     delayout = ESMF_DELayoutCreate(petMap, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-
-    allocate(connectionList(1))
+    
+    allocate(connectionList(2))
+    ! bipolar boundary condition at top row: nyg
     call ESMF_DistGridConnectionSet(connectionList(1), tileIndexA=1, &
+      tileIndexB=1, positionVector=(/nxg+1, 2*nyg+1/), &
+      orientationVector=(/-1, -2/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    ! periodic boundary condition along first dimension
+    call ESMF_DistGridConnectionSet(connectionList(2), tileIndexA=1, &
       tileIndexB=1, positionVector=(/nxg, 0/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
