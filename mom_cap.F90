@@ -1,5 +1,5 @@
-!--------------- MOM5 Ocean solo model -----------------
-! This is the MOM5 ocean model cap
+!--------------- MOM Ocean solo model -----------------
+! This is the MOM ocean model cap
 !
 ! Author:  Fei.Liu@gmail.com
 !
@@ -31,11 +31,17 @@ module mom_cap_mod
   use time_manager_mod,         only: operator( * ), operator( /= ), operator( > )
   use time_manager_mod,         only: date_to_string
   use time_manager_mod,         only: fms_get_calendar_type => get_calendar_type
-  use ocean_domains_mod,        only: get_local_indices, get_global_indices, get_domain_offsets
-  use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end, get_ocean_grid
+
   use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
   use ocean_model_mod,          only: ocean_model_data_get
+#ifdef MOM6_CAP
+  use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end
+  use ocean_model_mod,          only: ice_ocean_boundary_type
+  use MOM_grid,                 only: ocean_grid_type
+#else
+  use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end, get_ocean_grid
   use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_grid_type
+#endif
 
   use ESMF
   use NUOPC
@@ -203,12 +209,12 @@ module mom_cap_mod
 
     if(restart_interval < 0) then
       call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
-        msg="MOM5_CAP: OCN attribute: restart_interval cannot be negative.", &
+        msg="MOM_CAP: OCN attribute: restart_interval cannot be negative.", &
         line=__LINE__, &
         file=__FILE__, rcToReturn=rc)
       return
     endif
-    call ESMF_LogWrite('MOM5_CAP:restart_interval = '//trim(value), ESMF_LOGMSG_INFO, rc=dbrc)  
+    call ESMF_LogWrite('MOM_CAP:restart_interval = '//trim(value), ESMF_LOGMSG_INFO, rc=dbrc)  
     
   end subroutine
   
@@ -363,7 +369,7 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    write(*,*) '----- MOM5 initialization phase Advertise completed'
+    write(*,*) '----- MOM initialization phase Advertise completed'
 
   end subroutine InitializeAdvertise
   
@@ -806,7 +812,7 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    write(*,*) '----- MOM5 initialization phase Realize completed'
+    write(*,*) '----- MOM initialization phase Realize completed'
 
   end subroutine InitializeRealize
   
@@ -893,7 +899,7 @@ module mom_cap_mod
     character(len=*),parameter  :: subname='(mom_cap:ModelAdvance)'
 
     rc = ESMF_SUCCESS
-    if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM5 Model_ADVANCE: ")
+    if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM Model_ADVANCE: ")
     
     ! query the Component for its clock, importState and exportState
     call ESMF_GridCompGet(gcomp, clock=clock, importState=importState, &
@@ -990,7 +996,9 @@ module mom_cap_mod
     lbnd2 = lbound(dataPtr_mask,2)
     ubnd2 = ubound(dataPtr_mask,2)
 
+#ifdef MOM5_CAP
     call get_ocean_grid(Ocean_grid)
+#endif
 
     call State_getFldPtr(importState,'mean_zonal_moment_flx',dataPtr_mzmf,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) return
@@ -1004,6 +1012,7 @@ module mom_cap_mod
     dataPtr_evap = - dataPtr_evap
     dataPtr_sensi = - dataPtr_sensi
 
+#ifdef MOM5_CAP
     allocate(mzmf(lbnd1:ubnd1,lbnd2:ubnd2))
     allocate(mmmf(lbnd1:ubnd1,lbnd2:ubnd2))
     do j  = lbnd2, ubnd2
@@ -1019,6 +1028,7 @@ module mom_cap_mod
     dataPtr_mzmf = mzmf
     dataPtr_mmmf = mmmf
     deallocate(mzmf, mmmf)
+#endif
 
     !Optionally write restart files when currTime-startTime is integer multiples of restart_interval
     if(restart_interval > 0 ) then
@@ -1029,15 +1039,15 @@ module mom_cap_mod
       if((n_interval .gt. 0) .and. (n_interval*restart_interval == time_elapsed_sec)) then
           time_restart_current = esmf2fms_time(currTime)
           timestamp = date_to_string(time_restart_current)
-          call ESMF_LogWrite("MOM5: Writing restart at "//trim(timestamp), ESMF_LOGMSG_INFO, rc=dbrc)
+          call ESMF_LogWrite("MOM: Writing restart at "//trim(timestamp), ESMF_LOGMSG_INFO, rc=dbrc)
           write(*,*) 'calling ocean_model_restart'
           call ocean_model_restart(Ocean_state, timestamp)
       endif
     endif
 
-    if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM5 update_ocean_model: ")
+    if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM update_ocean_model: ")
     call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
-    if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM5 update_ocean_model: ")
+    if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM update_ocean_model: ")
 
     allocate(ofld(isc:iec,jsc:jec))
 
@@ -1127,7 +1137,7 @@ module mom_cap_mod
 !    call dumpMomInternal(mom_grid_i, export_slice, "ocn_current_jdir", "will provide", dataPtr_ocj )
     call dumpMomInternal(mom_grid_i, export_slice, "sea_lev"   , "will provide", Ocean_sfc%sea_lev)
 
-    if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM5 Model_ADVANCE: ")
+    if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM Model_ADVANCE: ")
   end subroutine ModelAdvance
 
   subroutine ocean_model_finalize(gcomp, rc)
