@@ -1,11 +1,4 @@
 # User must customize the following two make variables
-#INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_$(installdate)
-#INSTALLDIR=/home/$(USER)/OCN-INSTALLS/MOM5_latest
-#NEMSMOMDIR=/home/Fei.Liu/github/mom/exec/zeus
-#NEMSMOMDIR=/home/Gerhard.Theurich/OCN-INSTALLS/mom/exec/zeus
-
-
-installdate := $(shell date '+%Y-%m-%d-%H-%M-%S')
 
 ifneq ($(origin ESMFMKFILE), environment)
 $(error Environment variable ESMFMKFILE was not set.)
@@ -14,6 +7,13 @@ include         $(ESMFMKFILE)
 ESMF_INC        = $(ESMF_F90COMPILEPATHS)
 ESMF_LIB        = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 UTILINCS        = -I$(NEMSMOMDIR)/lib_FMS -I$(NEMSMOMDIR)/lib_ocean -I.
+MOM             = mom5
+
+# The same script is used for other versions of MOM, such as MOM4 and MOM6
+# VERSION is a make command argument (e.g. make makefile.nuopc VERSION=mom6)
+ifdef VERSION
+  MOM=$(VERSION)
+endif
 
 .SUFFIXES: .F90
 
@@ -38,19 +38,19 @@ $(LIBRARY): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $?
 
 install: $(LIBRARY)
-	rm -f mom5.mk.install
-	@echo "# ESMF self-describing build dependency makefile fragment" > mom5.mk.install
-	@echo "# src location Zeus: $pwd" >> mom5.mk.install
-	@echo  >> mom5.mk.install
-	@echo "ESMF_DEP_FRONT     = mom_cap_mod" >> mom5.mk.install
-	@echo "ESMF_DEP_INCPATH   = $(INSTALLDIR)" >> mom5.mk.install
-	@echo "ESMF_DEP_CMPL_OBJS = " >> mom5.mk.install
-	@echo "ESMF_DEP_LINK_OBJS = $(INSTALLDIR)/libmom.a $(INSTALLDIR)/lib_ocean.a $(INSTALLDIR)/lib_FMS.a" >> mom5.mk.install
+	rm -f $(VERSION).mk.install
+	@echo "# ESMF self-describing build dependency makefile fragment" > $(MOM).mk.install
+	@echo "# src location Zeus: $pwd" >> $(MOM).mk.install
+	@echo  >> $(MOM).mk.install
+	@echo "ESMF_DEP_FRONT     = mom_cap_mod" >> $(MOM).mk.install
+	@echo "ESMF_DEP_INCPATH   = $(INSTALLDIR)" >> $(MOM).mk.install
+	@echo "ESMF_DEP_CMPL_OBJS = " >> $(MOM).mk.install
+	@echo "ESMF_DEP_LINK_OBJS = $(INSTALLDIR)/libmom.a $(INSTALLDIR)/lib_ocean.a $(INSTALLDIR)/lib_FMS.a" >> $(MOM).mk.install
 	mkdir -p $(INSTALLDIR)
 	cp -f $(NEMSMOMDIR)/lib_ocean/lib_ocean.a $(INSTALLDIR)
 	cp -f $(NEMSMOMDIR)/lib_FMS/lib_FMS.a $(INSTALLDIR)
 	cp -f libmom.a mom_cap_mod.mod $(INSTALLDIR)
-	cp -f mom5.mk.install $(INSTALLDIR)/mom5.mk
+	cp -f $(MOM).mk.install $(INSTALLDIR)/$(MOM).mk
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst depend

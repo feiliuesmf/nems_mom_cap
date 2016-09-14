@@ -1,4 +1,4 @@
-!--------------- MOM Ocean solo model -----------------
+!--------------- MOM Ocean model -----------------
 ! This is the MOM ocean model cap
 !
 ! Author:  Fei.Liu@gmail.com
