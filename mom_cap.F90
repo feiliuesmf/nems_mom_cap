@@ -305,6 +305,7 @@ module mom_cap_mod
     DT = set_time (DT_OCEAN, 0)         
     Time = set_date (YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
 
+    Ocean_sfc%is_ocean_pe = .true.
     call ocean_model_init(Ocean_sfc, Ocean_state, Time, Time)
     call data_override_init(Ocean_domain_in = Ocean_sfc%domain)
     call mpp_get_compute_domain(Ocean_sfc%domain, isc, iec, jsc, jec)
@@ -400,7 +401,7 @@ module mom_cap_mod
                                               petMap(:),deLabelList(:), &
                                               indexList(:)
     integer                                :: ioff, joff
-    integer                                :: i, j, n, i1, j1, n1
+    integer                                :: i, j, n, i1, j1, n1, icount
     integer                                :: lbnd1,ubnd1,lbnd2,ubnd2
     integer                                :: lbnd3,ubnd3,lbnd4,ubnd4
     integer                                :: nblocks_tot
@@ -777,33 +778,42 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
 
-    call ESMF_StateGet(exportState, itemName='sea_surface_temperature', field=field_t_surf, rc=rc)
+    call ESMF_StateGet(exportState, itemSearch="sea_surface_temperature", itemCount=icount, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_FieldGet(field_t_surf, localDe=0, farrayPtr=t_surf, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    
+    ! Do sst initialization if it's part of export state
+    if(icount /= 0) then
+      call ESMF_StateGet(exportState, itemName='sea_surface_temperature', field=field_t_surf, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_FieldGet(field_t_surf, localDe=0, farrayPtr=t_surf, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
 
-    call ocean_model_data_get(Ocean_state, Ocean_sfc, 'mask', ofld, isc, jsc)
+      call ocean_model_data_get(Ocean_state, Ocean_sfc, 'mask', ofld, isc, jsc)
 
-    lbnd1 = lbound(t_surf,1)
-    ubnd1 = ubound(t_surf,1)
-    lbnd2 = lbound(t_surf,2)
-    ubnd2 = ubound(t_surf,2)
+      lbnd1 = lbound(t_surf,1)
+      ubnd1 = ubound(t_surf,1)
+      lbnd2 = lbound(t_surf,2)
+      ubnd2 = ubound(t_surf,2)
 
-    do j = lbnd2, ubnd2
-    do i = lbnd1, ubnd1
-       j1 = j - lbnd2 + jsc
-       i1 = i - lbnd1 + isc
-       if (ofld(i1,j1) == 0.) t_surf(i,j) = 0.0
-    enddo
-    enddo
+      do j = lbnd2, ubnd2
+      do i = lbnd1, ubnd1
+         j1 = j - lbnd2 + jsc
+         i1 = i - lbnd1 + isc
+         if (ofld(i1,j1) == 0.) t_surf(i,j) = 0.0
+      enddo
+      enddo
 
-    deallocate(ofld)
+      deallocate(ofld)
+    endif
 
     call NUOPC_Write(exportState, fileNamePrefix='init_field_ocn_export_', &
       timeslice=1, relaxedFlag=.true., rc=rc) 
