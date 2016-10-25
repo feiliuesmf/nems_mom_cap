@@ -1117,6 +1117,7 @@ module mom_cap_mod
     deallocate(ocz, ocm)
    endif  ! not ocean_solo
 
+    call ESMF_LogWrite("Before writing diagnostics", ESMF_LOGMSG_INFO, rc=rc)
     if(write_diagnostics) then
       call NUOPC_Write(exportState, fileNamePrefix='field_ocn_export_', &
         timeslice=export_slice, relaxedFlag=.true., rc=rc) 
@@ -1127,8 +1128,10 @@ module mom_cap_mod
       export_slice = export_slice + 1
     endif
 
+    call ESMF_LogWrite("Before calling sbc forcing", ESMF_LOGMSG_INFO, rc=rc)
     call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
+    call ESMF_LogWrite("Before dumpMomInternal", ESMF_LOGMSG_INFO, rc=rc)
     !write(*,*) 'MOM: --- run phase called ---'
     call dumpMomInternal(mom_grid_i, import_slice, "mean_zonal_moment_flx", "will provide", Ice_ocean_boundary%u_flux)
     call dumpMomInternal(mom_grid_i, import_slice, "mean_merid_moment_flx", "will provide", Ice_ocean_boundary%v_flux)
@@ -1605,6 +1608,7 @@ module mom_cap_mod
     integer                  :: rc
 
     if(.not. write_diagnostics) return ! nop in production mode
+    if(ocean_solo) return ! do not dump internal fields in ocean solo mode
 
     field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, &
       indexflag=ESMF_INDEX_DELOCAL, &
