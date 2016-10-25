@@ -1607,6 +1607,10 @@ module mom_cap_mod
     real(ESMF_KIND_R8), dimension(:,:), pointer  :: f2d
     integer                  :: rc
 
+#ifdef MOM6_CAP
+    return
+#endif
+
     if(.not. write_diagnostics) return ! nop in production mode
     if(ocean_solo) return ! do not dump internal fields in ocean solo mode
 
