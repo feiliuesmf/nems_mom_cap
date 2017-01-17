@@ -100,8 +100,13 @@
 !!
 !! @subsection Initialization Initialization
 !!
-!! **WHAT HAPPENS DURING HYCOM INIT**
+!! During the [InitializeAdvertise] (@ref mom_cap_mod::initializeadvertise) phase, calls are
+!! made to MOM's native initialization subroutines, including `fms_init()`, `constants_init()`,
+!! `field_manager_init()`, `diag_manager_init()`, and `set_calendar_type()`.  The MPI communicator
+!! is pulled in through the ESMF VM object for the MOM component. The dt and start time are set
+!! from parameters from the incoming ESMF clock with calls to `set_time()` and `set_date().`
 !!
+!! 
 !! @subsection Run Run
 !!
 !! **WHAT HAPPENS DURING RUN PHASE**
@@ -161,7 +166,41 @@
 !!
 !! @subsection MemoryManagement Memory Management
 !!
-!! **ARE FIELDS REFERENCED IN MODEL, COPIED, ETC?**
+!! The MOM cap has an internal state type with pointers to three
+!! types defined by MOM. There is also a small wrapper derived type
+!! required to associate an internal state instance
+!! with the ESMF/NUOPC component: 
+!!
+!!     type ocean_internalstate_type
+!!        type(ocean_public_type),       pointer :: ocean_public_type_ptr
+!!        type(ocean_state_type),        pointer :: ocean_state_type_ptr
+!!        type(ice_ocean_boundary_type), pointer :: ice_ocean_boundary_type_ptr
+!!     end type
+!!
+!!     type ocean_internalstate_wrapper
+!!        type(ocean_internalstate_type), pointer :: ptr
+!!     end type
+!!
+!! The member of type `ocean_public_type` stores ocean surface fields used during the coupling.
+!! The member of type `ocean_state_type` is required by the ocean driver,
+!! although its internals are private (not to be used by the coupling directly).
+!! This type is passed to the ocean init and update routines
+!! so that it can maintain state there if desired.
+!! The member of type `ice_ocean_boundary_type` is populated by this cap
+!! with incoming coupling fields from other components. These three derived types are allocated during the
+!! [InitializeAdvertise] (@ref mom_cap_mod::initializeadvertise) phase.  Also during that
+!! phase, the `ice_ocean_boundary` type members are all allocated using bounds retrieved
+!! from `mpp_get_compute_domain()`.
+!!
+!! During the [InitializeRealize] (@ref mom_cap_mod::initializerealize) phase,
+!! `ESMF_Field`s are created for each of the coupling fields in the `ice_ocean_boundary`
+!! and `ocean_public_type` members of the internal state. These fields directly reference into the members of
+!! the `ice_ocean_boundary` and `ocean_public_type` so that memory-to-memory copies are not required to move
+!! data from the cap's import and export states to the memory areas used internally
+!! by MOM.
+!!
+!!
+!!
 !!
 !! @subsection IO I/O
 !!
@@ -180,7 +219,7 @@
 !! **ANY RUNTIME CONFIG PARAMS**
 !! 
 !! @section Repository
-!! The HYCOM NUOPC cap is maintained in a GitHub repository:
+!! The MOM NUOPC cap is maintained in a GitHub repository:
 !! https://github.com/feiliuesmf/nems_mom_cap
 !!
 !! @section References 
