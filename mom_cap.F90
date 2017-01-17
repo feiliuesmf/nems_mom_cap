@@ -32,7 +32,11 @@
 !! (http://www.earthsystemmodeling.org/esmf_releases/non_public/ESMF_7_0_0/NUOPC_howtodoc/) 
 !! how-to document.
 !!
-!!  **MORE INFO HERE ABOUT WHAT FILES MAKE UP THE CAP**
+!! The MOM cap package includes the cap itself (mom_cap.F90, a Fortran module), a
+!! set of time utilities (time_utils.F90) for converting between ESMF and FMS
+!! time types, and two makefiles. Also included are self-describing dependency
+!! makefile fragments (mom5.mk and mom5.mk.template), although these can be generated
+!! by the makefiles for specific installations of the MOM cap.
 !!
 !! @subsection CapSubroutines Cap Subroutines
 !!
@@ -109,21 +113,86 @@
 !! 
 !! @subsection Run Run
 !!
-!! **WHAT HAPPENS DURING RUN PHASE**
+!! The [ModelAdvance] (@ref mom_cap_mod::modeladvance) subroutine is called by the NUOPC
+!! infrastructure when it's time for MOM to advance in time. During this subroutine, there is a
+!! call into the MOM update routine:
+!!
+!!      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
+!!
+!! Prior to this call, the cap performs a few steps:
+!! - the `Time` and `Time_step_coupled` parameters, which are based on FMS types, are derived from the incoming ESMF clock
+!! - there are calls to two stubs: `ice_ocn_bnd_from_data()` and `external_coupler_sbc_before()` - these are currently
+!!   inactive, but may be modified to read in import data from file or from an external coupler
+!! - diagnostics are optionally written to files `field_ocn_import_*`, one for each import field
+!! - import fields are prepared:
+!!    - the sign is reversed on `mean_evap_rate` and `mean_sensi_heat_flux`
+!!    - momentum flux vectors are rotated to internal grid
+!! - optionally, a call is made to `ocean_model_restart()` at the interval `restart_interval`
+!!
+!! After the call to `update_ocean_model()`, the cap performs these steps:
+!! - the `ocean_mask` export is set to match that of the internal MOM mask
+!! - the `freezing_melting_potential` export is converted from J m-2 to W m-2 by dividing by the coupling interval
+!! - vector rotations are applied to the `ocean_current_zonal` and `ocean_current_merid` exports, back to lat-lon grid
+!! - diagnostics are optionally written to files `field_ocn_export_*`, one for each export field
+!! - a call is made to `external_coupler_sbc_after()` to update exports from an external coupler (currently an inactive stub)
+!! - calls are made to `dumpMomInternal()` to write files `field_ocn_internal_*` for all internal fields (both import and export)
 !!
 !! @subsubsection VectorRotations Vector Rotations
 !!
-!! **INFO ABOUT VECTOR ROTATIONS**
+!! Vector rotations are applied to incoming momentum fluxes (from regular lat-lon to tripolar grid) and
+!! outgoing ocean currents (from tripolar to regular lat-lon). The rotation angles are provided
+!! from the native MOM grid by a call to `get_ocean_grid(Ocean_grid)`.
+!! The cosine and sine of the rotation angle are:
 !!
+!!     Ocean_grid%cos_rot(i,j)
+!!     Ocean_grid%sin_rot(i,j)
+!!
+!! The rotation from regular lat-lon to tripolar is:
+!! \f[
+!! \begin{bmatrix}
+!! mean\_zonal\_moment\_flx' \\
+!! mean\_merid\_moment\_flx'
+!! \end{bmatrix} =
+!! \begin{bmatrix}
+!!  cos \theta   & sin \theta \\
+!!  -sin \theta  & cos \theta
+!! \end{bmatrix} *
+!! \begin{bmatrix}
+!! mean\_zonal\_moment\_flx \\
+!! mean\_merid\_moment\_flx
+!! \end{bmatrix}
+!! \f]
+!!
+!! The rotation from tripolar to regular lat-lon is:
+!! \f[
+!! \begin{bmatrix}
+!! ocn\_current\_zonal' \\
+!! ocn\_current\_merid'
+!! \end{bmatrix} =
+!! \begin{bmatrix}
+!!  cos \theta   & -sin \theta \\
+!!  sin \theta  & cos \theta
+!! \end{bmatrix} *
+!! \begin{bmatrix}
+!! ocn\_current\_zonal \\
+!! ocn\_current\_merid
+!! \end{bmatrix}
+!! \f]
 !! @subsection Finalization Finalization
 !!
-!! **WHAT HAPPENS DURING FINALIZE**
+!! NUOPC infrastructure calls [ocean_model_finalize] (@ref mom_cap_mod::ocean_model_finalize)
+!! at the end of the run. This subroutine is a hook to call into MOM's native shutdown
+!! procedures:
+!!
+!!     call ocean_model_end (Ocean_sfc, Ocean_State, Time)
+!!     call diag_manager_end(Time )
+!!     call field_manager_end
+!!     call fms_io_exit
+!!     call fms_end
 !!
 !! @section ModelFields Model Fields
 !!
-!! The following tables list the import and export fields currently set up in the HYCOM cap.
-!!
-!! **UPDATE THESE FOR MOM CAP**
+!! The following tables list the import and export fields currently set up in the MOM cap.
 !!
 !! @subsection ImportFields Import Fields 
 !!
@@ -208,11 +277,24 @@
 !!
 !! @section BuildingAndInstalling Building and Installing
 !!
-!! **HOW TO BUILD AND INSTALL CAP**
+!! There are two makefiles included with the MOM cap, makefile and makefile.nuopc.
+!! The makefile.nuopc file is intended to be used within another build system, such
+!! as the NEMSAppBuilder.  The regular makefile can be used generally for building
+!! and installing the cap.  Two variables must be customized at the top:
+!! - `INSTALLDIR` - where to copy the cap library and dependent libraries
+!! - `NEMSMOMDIR` - location of the MOM library and FMS library
+!!
+!! To install run:
+!!    $ make install
+!!
+!! A makefile fragment, mom5.mk, will also be copied into the directory. The fragment
+!! defines several variables that can be used by another build system to include the
+!! MOM cap and its dependencies.
 !!
 !! @subsection Dependencies Dependencies
 !!
-!! **LIST ANY DEPENDENCIES**
+!! The MOM cap is dependent on the MOM library itself (lib_ocean.a) and the FMS
+!! library (lib_FMS.a).
 !! 
 !! @section RuntimeConfiguration Runtime Configuration
 !! 
