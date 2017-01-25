@@ -99,6 +99,29 @@
 !!
 !! @subsection DomainCreation Domain Creation
 !!
+!! The MOM tripolar grid is represented as a 2D `ESMF_Grid` and coupling fields are placed
+!! on this grid. Calls related to creating the grid are located in the [InitializeRealize]
+!! (@ref mom_cap_mod::initializerealize) subroutine, which is called by the NUOPC infrastructure
+!! during the intialization sequence.
+!!
+!! The cap determines parameters for setting up the grid by calling subroutines in the
+!! `mpp_domains_mod` module. The global domain size is determined by calling `mpp_get_global_domain()`.
+!! A check is in place to ensure that there is only a single tile in the domain (the
+!! cap is currently limited to one tile; multi-tile mosaics are not supported).  The
+!! decomposition across processors is determined via calls to `mpp_get_compute_domains()`
+!! (to retrieve decomposition block indices) and `mpp_get_pelist()` (to determine how
+!! blocks are assigned to processors).
+!!
+!! The grid is created in several steps:
+!!  - an `ESMF_DELayout` is created based on the pelist from MOM
+!!  - an `ESMF_DistGrid` is created over the global index space. Connections are set
+!!    up so that the index space is periodic in the first dimension and has a
+!!    fold at the top for the bipole. The decompostion blocks are also passed in
+!!    along with the `ESMF_DELayout` mentioned above.
+!!  - an `ESMF_Grid` is then created by passing in the above `ESMF_DistGrid`.
+!!
+!! Masks, areas, center (tlat, tlon), and corner (ulat, ulon) coordinates are then added to the `ESMF_Grid`
+!! by retrieving those fields from MOM with calls to `ocean_model_data_get()`. 
 !!
 !! @subsection Initialization Initialization
 !!
@@ -202,7 +225,7 @@
 !! mean_calving_rate                 | kg m-2 s-1 | calving         | mass flux of frozen runoff                    | |
 !! mean_evap_rate                    | kg m-2 s-1 | q_flux          | specific humidity flux                        | sign reversed (- evap)
 !! mean_fprec_rate                   | kg m-2 s-1 | fprec           | mass flux of frozen precip                    | |
-!! mean_merid_moment_flx             | Pa         | v_flux          | j-directed wind stress into ocean             | vector rotation applied
+!! mean_merid_moment_flx             | Pa         | v_flux          | j-directed wind stress into ocean             | [vector rotation] (@ref VectorRotations) applied - lat-lon to tripolar
 !! mean_net_lw_flx                   | W m-2      | lw_flux         | long wave radiation                           | |
 !! mean_net_sw_ir_dif_flx            | W m-2      | sw_flux_nir_dif | diffuse near IR shortwave radiation           | |
 !! mean_net_sw_ir_dir_flx            | W m-2      | sw_flux_nir_dir | direct near IR shortwave radiation            | |
@@ -213,20 +236,20 @@
 !! mean_runoff_rate                  | kg m-2 s-1 | runoff          | mass flux of liquid runoff                    | |
 !! mean_salt_rate                    | kg m-2 s-1 | salt_flux       | salt flux                                     | |
 !! mean_sensi_heat_flx               | W m-2      | t_flux          | sensible heat flux into ocean                 | sign reversed (- sensi)
-!! mean_zonal_moment_flx             | Pa         | u_flux          | j-directed wind stress into ocean             | vector rotation applied
+!! mean_zonal_moment_flx             | Pa         | u_flux          | j-directed wind stress into ocean             | [vector rotation] (@ref VectorRotations) applied - lat-lon to tripolar
 !!
 !!
 !! @subsection ExportField Export Fields
 !!
-!! Export fields are populated from the ocean_sfc parameter (type ocean_public_type)
-!! after the call to update_ocean_model().
+!! Export fields are populated from the `ocean_sfc` parameter (type `ocean_public_type`)
+!! after the call to `update_ocean_model()`.
 !!
 !! Standard Name                     | Units      | Model Variable  | Description                               | Notes
 !! ----------------------------------|------------|-----------------|-------------------------------------------|---------------------------------------------------------------------
 !! freezing_melting_potential        | W m-2      | frazil          | accumulated heating from frazil formation | cap converts model units (J m-2) to (W m-2) for export
 !! ocean_mask                        |            |                 | ocean mask                                | |
-!! ocn_current_merid                 | m s-1      | v_surf          | j-directed surface velocity on u-cell     | vector rotation applied - tripolar to lat-lon
-!! ocn_current_zonal                 | m s-1      | u_surf          | i-directed surface velocity on u-cell     | vector rotation applied - tripolar to lat-lon
+!! ocn_current_merid                 | m s-1      | v_surf          | j-directed surface velocity on u-cell     | [vector rotation] (@ref VectorRotations) applied - tripolar to lat-lon
+!! ocn_current_zonal                 | m s-1      | u_surf          | i-directed surface velocity on u-cell     | [vector rotation] (@ref VectorRotations) applied - tripolar to lat-lon
 !! s_surf                            | psu        | s_surf          | sea surface salinity on t-cell            | |
 !! sea_lev                           | m          | sea_lev         | sea level                                 | model computation is eta_t + patm/(rho0*grav) - eta_geoid - eta_tide
 !! sea_surface_temperature           | K          | t_surf          | sea surface temperature on t-cell         | |
@@ -266,12 +289,16 @@
 !! data from the cap's import and export states to the memory areas used internally
 !! by MOM.
 !!
-!!
-!!
-!!
 !! @subsection IO I/O
 !!
-!!
+!! The cap can optionally output coupling fields for diagnostic purposes if the ESMF attribute
+!! "DumpFields" has been set to "true". In this case the cap will write out NetCDF files
+!! with names "field_ocn_import_<fieldname>.nc" and "field_ocn_export_<fieldname>.nc".
+!! Additionally, calls will be made to the cap subroutine [dumpMomInternal]
+!! (@ref mom_cap_mod::dumpmominternal) to write out model internal fields to files
+!! named "field_ocn_internal_<fieldname>.nc".  In all cases these NetCDF files will
+!! contain a time series of field data.
+!! 
 !! @section BuildingAndInstalling Building and Installing
 !!
 !! There are two makefiles included with the MOM cap, makefile and makefile.nuopc.
@@ -294,6 +321,22 @@
 !! library (lib_FMS.a).
 !! 
 !! @section RuntimeConfiguration Runtime Configuration
+!!
+!! At runtime, the MOM cap can be configured with several options provided
+!! as ESMF attributes.  Attributes can be set in the cap by the NUOPC Driver
+!! above this cap, or in some systems (e.g., NEMS) attributes are set by
+!! reading in from a configuration file.  The available attributes are:
+!!
+!! * `DumpFields` - when set to "true", write out diagnostic NetCDF files for import/export/internal fields
+!! * `ProfileMemory` - when set to "true", write out memory usage information to the ESMF log files; this
+!!   information is written when entering and leaving the [ModelAdvance]
+!!   (@ref mom_cap_mod::modeladvance) subroutine and before and after the call to
+!!   `update_ocean_model()`.
+!! * `OceanSolo` - when set to "true", this option indicates that MOM is being run
+!!   uncoupled; in this case the vector rotations and other data manipulations
+!!   on import fields are skipped
+!! * `restart_interval` - integer number of seconds indicating the interval at
+!!   which to call `ocean_model_restart()`; no restarts written if set to 0
 !! 
 !! 
 !! @section Repository
