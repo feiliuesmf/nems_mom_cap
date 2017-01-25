@@ -96,11 +96,9 @@
 !!
 !! @section UnderlyingModelInterfaces Underlying Model Interfaces
 !!
-!! **OVERVIEW OF UNDERLYING HYCOM INTERFACES USED BY CAP**
 !!
 !! @subsection DomainCreation Domain Creation
 !!
-!! **HOW IS GRID CREATED + IMAGES**
 !!
 !! @subsection Initialization Initialization
 !!
@@ -273,7 +271,6 @@
 !!
 !! @subsection IO I/O
 !!
-!! **I/O OPTIONS IN CAP**
 !!
 !! @section BuildingAndInstalling Building and Installing
 !!
@@ -298,7 +295,6 @@
 !! 
 !! @section RuntimeConfiguration Runtime Configuration
 !! 
-!! **ANY RUNTIME CONFIG PARAMS**
 !! 
 !! @section Repository
 !! The MOM NUOPC cap is maintained in a GitHub repository:
