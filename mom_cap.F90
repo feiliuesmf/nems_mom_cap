@@ -168,35 +168,35 @@
 !!     Ocean_grid%cos_rot(i,j)
 !!     Ocean_grid%sin_rot(i,j)
 !!
-!! The rotation from regular lat-lon to tripolar is:
+!! The rotation of momentum flux from regular lat-lon to tripolar is:
 !! \f[
 !! \begin{bmatrix}
-!! mean\_zonal\_moment\_flx' \\
-!! mean\_merid\_moment\_flx'
+!! \tau_x' \\
+!! \tau_y'
 !! \end{bmatrix} =
 !! \begin{bmatrix}
 !!  cos \theta   & sin \theta \\
 !!  -sin \theta  & cos \theta
 !! \end{bmatrix} *
 !! \begin{bmatrix}
-!! mean\_zonal\_moment\_flx \\
-!! mean\_merid\_moment\_flx
+!! \tau_x \\
+!! \tau_y
 !! \end{bmatrix}
 !! \f]
 !!
-!! The rotation from tripolar to regular lat-lon is:
+!! The rotation of ocean current from tripolar to regular lat-lon is:
 !! \f[
 !! \begin{bmatrix}
-!! ocn\_current\_zonal' \\
-!! ocn\_current\_merid'
+!! u' \\
+!! v'
 !! \end{bmatrix} =
 !! \begin{bmatrix}
 !!  cos \theta   & -sin \theta \\
 !!  sin \theta  & cos \theta
 !! \end{bmatrix} *
 !! \begin{bmatrix}
-!! ocn\_current\_zonal \\
-!! ocn\_current\_merid
+!! u \\
+!! v
 !! \end{bmatrix}
 !! \f]
 !! @subsection Finalization Finalization
