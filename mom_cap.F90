@@ -1490,6 +1490,7 @@ module mom_cap_mod
 
     dataPtr_frazil = dataPtr_frazil/dt_cpld !convert from J/m^2 to W/m^2 for CICE coupling
 
+#ifdef MOM5_CAP
     ocz = dataPtr_ocz
     ocm = dataPtr_ocm
     do j  = lbnd2, ubnd2
@@ -1504,6 +1505,7 @@ module mom_cap_mod
 !        dataPtr_ocj(i,j) = ocm(i,j)
       enddo
     enddo
+#endif
     deallocate(ocz, ocm)
    endif  ! not ocean_solo
 
