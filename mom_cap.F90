@@ -377,12 +377,11 @@ module mom_cap_mod
 
   use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
   use ocean_model_mod,          only: ocean_model_data_get
+  use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end, get_ocean_grid
 #ifdef MOM6_CAP
-  use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end
   use ocean_model_mod,          only: ice_ocean_boundary_type
   use MOM_grid,                 only: ocean_grid_type
 #else
-  use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end, get_ocean_grid
   use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_grid_type
 #endif
 
@@ -403,6 +402,7 @@ module mom_cap_mod
     type(ocean_public_type),       pointer :: ocean_public_type_ptr
     type(ocean_state_type),        pointer :: ocean_state_type_ptr
     type(ice_ocean_boundary_type), pointer :: ice_ocean_boundary_type_ptr
+    type(ocean_grid_type),         pointer :: ocean_grid_ptr
   end type
 
   type ocean_internalstate_wrapper
@@ -667,8 +667,8 @@ module mom_cap_mod
     call fms_init(mpi_comm_mom)
     call constants_init
     call field_manager_init
-    call set_calendar_type (JULIAN                )
     call diag_manager_init
+    call set_calendar_type (JULIAN                )
     ! this ocean connector will be driven at set interval
     dt_cpld = DT_OCEAN
     DT = set_time (DT_OCEAN, 0)         
@@ -738,6 +738,18 @@ module mom_cap_mod
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+
+#ifdef MOM6_CAP
+    ! When running mom6 solo, the rotation angles are not computed internally
+    ! in MOM6. We need to 
+    ! calculate cos and sin of rotational angle for MOM6; the values
+    ! are stored in ocean_internalstate%ptr%ocean_grid_ptr%cos_rot and sin_rot
+    ! The rotation angles are retrieved during run time to rotate incoming
+    ! and outgoing vectors
+    !
+    call calculate_rot_angle(Ocean_state, ocean_sfc, &
+      ocean_internalstate%ptr%ocean_grid_ptr)
+#endif
 
     write(*,*) '----- MOM initialization phase Advertise completed'
 
@@ -1402,6 +1414,9 @@ module mom_cap_mod
 #ifdef MOM5_CAP
     call get_ocean_grid(Ocean_grid)
 #endif
+#ifdef MOM6_CAP
+    Ocean_grid => ocean_internalstate%ptr%ocean_grid_ptr
+#endif
 
     call State_getFldPtr(importState,'mean_zonal_moment_flx',dataPtr_mzmf,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1427,7 +1442,6 @@ module mom_cap_mod
     dataPtr_evap = - dataPtr_evap
     dataPtr_sensi = - dataPtr_sensi
 
-#ifdef MOM5_CAP
     allocate(mzmf(lbnd1:ubnd1,lbnd2:ubnd2))
     allocate(mmmf(lbnd1:ubnd1,lbnd2:ubnd2))
     do j  = lbnd2, ubnd2
@@ -1443,7 +1457,6 @@ module mom_cap_mod
     dataPtr_mzmf = mzmf
     dataPtr_mmmf = mmmf
     deallocate(mzmf, mmmf)
-#endif
    endif  ! not ocean_solo
 
     !Optionally write restart files when currTime-startTime is integer multiples of restart_interval
@@ -1503,7 +1516,6 @@ module mom_cap_mod
 
     dataPtr_frazil = dataPtr_frazil/dt_cpld !convert from J/m^2 to W/m^2 for CICE coupling
 
-#ifdef MOM5_CAP
     ocz = dataPtr_ocz
     ocm = dataPtr_ocm
     do j  = lbnd2, ubnd2
@@ -1516,7 +1528,6 @@ module mom_cap_mod
                          + Ocean_grid%sin_rot(i1,j1)*ocz(i,j)
       enddo
     enddo
-#endif
     deallocate(ocz, ocm)
    endif  ! not ocean_solo
 
@@ -2055,5 +2066,52 @@ module mom_cap_mod
       return  ! bail out
     
   end subroutine
+
+  subroutine calculate_rot_angle(OS, OSFC, OG)
+    type(ocean_state_type), intent(in)    :: OS
+    type(ocean_public_type), intent(in)   :: OSFC
+    type(ocean_grid_type), pointer        :: OG
+
+    integer                               :: i,j,ishift,jshift,ilb,iub,jlb,jub
+    real                                  :: angle, lon_scale
+    type(ocean_grid_type), pointer        :: G
+
+    call get_ocean_grid(OS, G)
+
+    !print *, 'lbound: ', lbound(G%geoLatT), lbound(G%geoLonT), lbound(G%sin_rot)
+    !print *, 'ubound: ', ubound(G%geoLatT), ubound(G%geoLonT), ubound(G%sin_rot)
+
+    !print *, minval(G%geoLatT), maxval(G%geoLatT)
+    !print *, minval(G%geoLonT), maxval(G%geoLonT)
+    !print *, G%isc, G%jsc, G%iec, G%jec
+
+    !
+    ! The bounds isc:iec goes from 5-104, isc-ishift:iec-ishift goes from 1:100
+    !
+    call mpp_get_compute_domain(OSFC%Domain, ilb, iub, jlb, jub)
+    ishift = ilb-G%isc
+    jshift = jlb-G%jsc
+    !print *, 'ilb, iub, jlb, jub', ilb, iub, jlb, jub, ishift, jshift
+    !print *, 'sizes', iub-ilb, jub-jlb, G%iec-G%isc, G%jec-G%jsc
+    allocate(OG)
+    allocate(OG%sin_rot(ilb:iub, jlb:jub))
+    allocate(OG%cos_rot(ilb:iub, jlb:jub))
+
+    ! loop 5-104
+    do j=G%jsc,G%jec ; do i=G%isc,G%iec
+      lon_scale    = cos((G%geoLatBu(I-1,J-1) + G%geoLatBu(I,J-1  ) + &
+                          G%geoLatBu(I-1,J) + G%geoLatBu(I,J)) * atan(1.0)/180)
+      angle        = atan2((G%geoLonBu(I-1,J) + G%geoLonBu(I,J) - &
+                            G%geoLonBu(I-1,J-1) - G%geoLonBu(I,J-1))*lon_scale, &
+                            G%geoLatBu(I-1,J) + G%geoLatBu(I,J) - &
+                            G%geoLatBu(I-1,J-1) - G%geoLatBu(I,J-1) )
+      OG%sin_rot(i+ishift,j+jshift) = sin(angle) ! angle is the clockwise angle from lat/lon to ocean
+      OG%cos_rot(i+ishift,j+jshift) = cos(angle) ! grid (e.g. angle of ocean "north" from true north)
+    enddo ; enddo
+    !print *, minval(OG%sin_rot), maxval(OG%sin_rot)
+    !print *, minval(OG%cos_rot), maxval(OG%cos_rot)
+
+  end subroutine
+
 
 end module mom_cap_mod
