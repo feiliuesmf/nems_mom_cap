@@ -667,8 +667,8 @@ module mom_cap_mod
     call fms_init(mpi_comm_mom)
     call constants_init
     call field_manager_init
-    call diag_manager_init
     call set_calendar_type (JULIAN                )
+    call diag_manager_init
     ! this ocean connector will be driven at set interval
     dt_cpld = DT_OCEAN
     DT = set_time (DT_OCEAN, 0)         
