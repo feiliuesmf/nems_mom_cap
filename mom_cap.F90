@@ -2067,6 +2067,7 @@ module mom_cap_mod
     
   end subroutine
 
+#ifdef MOM6_CAP
   subroutine calculate_rot_angle(OS, OSFC, OG)
     type(ocean_state_type), intent(in)    :: OS
     type(ocean_public_type), intent(in)   :: OSFC
@@ -2112,6 +2113,7 @@ module mom_cap_mod
     !print *, minval(OG%cos_rot), maxval(OG%cos_rot)
 
   end subroutine
+#endif
 
 
 end module mom_cap_mod
