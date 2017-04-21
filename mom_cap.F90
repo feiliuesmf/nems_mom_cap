@@ -1169,7 +1169,6 @@ module mom_cap_mod
     call ocean_model_data_get(Ocean_state, Ocean_sfc, 'vlat', ofld, isc, jsc)
 #endif
 
-    call ocean_model_data_get(Ocean_state, Ocean_sfc, 'ulat', ofld, isc, jsc)
     write(tmpstr,*) subname//' ofld yu = ',minval(ofld),maxval(ofld)
     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
     call mpp_global_field(Ocean_sfc%domain, ofld, gfld)
