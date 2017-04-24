@@ -1159,16 +1159,8 @@ module mom_cap_mod
     enddo
     enddo
 
-! The corner latitude values are treated differently because MOM5 runs on B-Grid while
-! MOM6 runs on C-Grid.
-#ifdef MOM5_CAP
-    call ocean_model_data_get(Ocean_state, Ocean_sfc, 'ulat', ofld, isc, jsc)
-#endif
-
-#ifdef MOM6_CAP
+    ! vlat is the corner latitude for both B-Grid and C-Grid
     call ocean_model_data_get(Ocean_state, Ocean_sfc, 'vlat', ofld, isc, jsc)
-#endif
-
     write(tmpstr,*) subname//' ofld yu = ',minval(ofld),maxval(ofld)
     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
     call mpp_global_field(Ocean_sfc%domain, ofld, gfld)
