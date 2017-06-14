@@ -17,6 +17,9 @@ endif
 ifeq ($(MOM), mom5)
   USER_CFLAGS=-DMOM5_CAP 
 endif
+ifeq ($(MOM), mom6)
+  USER_CFLAGS=-DMOM6_CAP 
+endif
 
 .SUFFIXES: .F90
 

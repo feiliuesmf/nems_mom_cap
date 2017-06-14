@@ -37,7 +37,7 @@
 !! The MOM cap package includes the cap itself (mom_cap.F90, a Fortran module), a
 !! set of time utilities (time_utils.F90) for converting between ESMF and FMS
 !! time types, and two makefiles. Also included are self-describing dependency
-!! makefile fragments (mom5.mk and mom5.mk.template), although these can be generated
+!! makefile fragments (mom.mk and mom.mk.template), although these can be generated
 !! by the makefiles for specific installations of the MOM cap.
 !!
 !! @subsection CapSubroutines Cap Subroutines
@@ -312,7 +312,7 @@
 !! To install run:
 !!    $ make install
 !!
-!! A makefile fragment, mom5.mk, will also be copied into the directory. The fragment
+!! A makefile fragment, mom.mk, will also be copied into the directory. The fragment
 !! defines several variables that can be used by another build system to include the
 !! MOM cap and its dependencies.
 !!
@@ -338,6 +338,9 @@
 !!   on import fields are skipped
 !! * `restart_interval` - integer number of seconds indicating the interval at
 !!   which to call `ocean_model_restart()`; no restarts written if set to 0
+!! * `GridAttachArea` - when set to "true", this option indicates that MOM grid attaches cell area
+!!   using internal values computed in MOM. The default value is "false", grid cell area will
+!!   be computed in ESMF.
 !! 
 !! 
 !! @section Repository
@@ -432,6 +435,7 @@ module mom_cap_mod
   logical                 :: write_diagnostics = .true.
   logical                 :: profile_memory = .true.
   logical                 :: ocean_solo = .true.
+  logical                 :: grid_attach_area = .false.
   integer(ESMF_KIND_I8)   :: restart_interval
 
   contains
@@ -535,6 +539,7 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     write_diagnostics=(trim(value)=="true")
+    call ESMF_LogWrite('MOM_CAP:DumpFields = '//trim(value), ESMF_LOGMSG_INFO, rc=dbrc)  
 
     call ESMF_AttributeGet(gcomp, name="ProfileMemory", value=value, defaultValue="true", &
       convention="NUOPC", purpose="Instance", rc=rc)
@@ -543,6 +548,7 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     profile_memory=(trim(value)/="false")
+    call ESMF_LogWrite('MOM_CAP:ProfileMemory = '//trim(value), ESMF_LOGMSG_INFO, rc=dbrc)  
 
     call ESMF_AttributeGet(gcomp, name="OceanSolo", value=value, defaultValue="false", &
       convention="NUOPC", purpose="Instance", rc=rc)
@@ -551,6 +557,7 @@ module mom_cap_mod
       file=__FILE__)) &
       return  ! bail out
     ocean_solo=(trim(value)=="true")
+    call ESMF_LogWrite('MOM_CAP:OceanSolo = '//trim(value), ESMF_LOGMSG_INFO, rc=dbrc)  
 
     ! Retrieve restart_interval in (seconds)
     ! A restart_interval value of 0 means no restart will be written.
@@ -574,6 +581,15 @@ module mom_cap_mod
       return
     endif
     call ESMF_LogWrite('MOM_CAP:restart_interval = '//trim(value), ESMF_LOGMSG_INFO, rc=dbrc)  
+
+    call ESMF_AttributeGet(gcomp, name="GridAttachArea", value=value, defaultValue="false", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    grid_attach_area=(trim(value)=="true")
+    call ESMF_LogWrite('MOM_CAP:GridAttachArea = '//trim(value), ESMF_LOGMSG_INFO, rc=dbrc)  
     
   end subroutine
   
@@ -982,12 +998,16 @@ module mom_cap_mod
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_GridAddItem(gridIn, itemFlag=ESMF_GRIDITEM_AREA, itemTypeKind=ESMF_TYPEKIND_R8, &
-       staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+
+    ! Attach area to the Grid optionally. By default the cell areas are computed.
+    if(grid_attach_area) then
+      call ESMF_GridAddItem(gridIn, itemFlag=ESMF_GRIDITEM_AREA, itemTypeKind=ESMF_TYPEKIND_R8, &
+         staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
 
     call ESMF_GridGetCoord(gridIn, coordDim=1, &
         staggerloc=ESMF_STAGGERLOC_CENTER, &
@@ -1026,13 +1046,15 @@ module mom_cap_mod
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_GridGetItem(gridIn, itemflag=ESMF_GRIDITEM_AREA, &
-        staggerloc=ESMF_STAGGERLOC_CENTER, &
-        farrayPtr=dataPtr_area, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if(grid_attach_area) then
+      call ESMF_GridGetItem(gridIn, itemflag=ESMF_GRIDITEM_AREA, &
+          staggerloc=ESMF_STAGGERLOC_CENTER, &
+          farrayPtr=dataPtr_area, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
 
     !---------------------------------
     ! load up area, mask, center and corner values
@@ -1043,10 +1065,10 @@ module mom_cap_mod
 
     call mpp_get_compute_domain(Ocean_sfc%domain, isc, iec, jsc, jec)
 
-    lbnd1 = lbound(dataPtr_area,1)
-    ubnd1 = ubound(dataPtr_area,1)
-    lbnd2 = lbound(dataPtr_area,2)
-    ubnd2 = ubound(dataPtr_area,2)
+    lbnd1 = lbound(dataPtr_mask,1)
+    ubnd1 = ubound(dataPtr_mask,1)
+    lbnd2 = lbound(dataPtr_mask,2)
+    ubnd2 = ubound(dataPtr_mask,2)
 
     lbnd3 = lbound(dataPtr_xcor,1)
     ubnd3 = ubound(dataPtr_xcor,1)
@@ -1087,19 +1109,21 @@ module mom_cap_mod
     enddo
     enddo
 
-    call ocean_model_data_get(Ocean_state, Ocean_sfc, 'area', ofld, isc, jsc)
-    write(tmpstr,*) subname//' ofld area = ',minval(ofld),maxval(ofld)
-    call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-    call mpp_global_field(Ocean_sfc%domain, ofld, gfld)
-    write(tmpstr,*) subname//' gfld area = ',minval(gfld),maxval(gfld)
-    call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-    do j = lbnd2, ubnd2
-    do i = lbnd1, ubnd1
-       j1 = j - lbnd2 + jsc
-       i1 = i - lbnd1 + isc
-       dataPtr_area(i,j) = ofld(i1,j1)
-    enddo
-    enddo
+    if(grid_attach_area) then
+      call ocean_model_data_get(Ocean_state, Ocean_sfc, 'area', ofld, isc, jsc)
+      write(tmpstr,*) subname//' ofld area = ',minval(ofld),maxval(ofld)
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+      call mpp_global_field(Ocean_sfc%domain, ofld, gfld)
+      write(tmpstr,*) subname//' gfld area = ',minval(gfld),maxval(gfld)
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+      do j = lbnd2, ubnd2
+      do i = lbnd1, ubnd1
+         j1 = j - lbnd2 + jsc
+         i1 = i - lbnd1 + isc
+         dataPtr_area(i,j) = ofld(i1,j1)
+      enddo
+      enddo
+    endif
 
     call ocean_model_data_get(Ocean_state, Ocean_sfc, 'tlon', ofld, isc, jsc)
     write(tmpstr,*) subname//' ofld xt = ',minval(ofld),maxval(ofld)
@@ -1189,8 +1213,10 @@ module mom_cap_mod
     write(tmpstr,*) subname//' mask = ',minval(dataPtr_mask),maxval(dataPtr_mask)
     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
 
-    write(tmpstr,*) subname//' area = ',minval(dataPtr_area),maxval(dataPtr_area)
-    call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+    if(grid_attach_area) then
+      write(tmpstr,*) subname//' area = ',minval(dataPtr_area),maxval(dataPtr_area)
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
 
     write(tmpstr,*) subname//' xcen = ',minval(dataPtr_xcen),maxval(dataPtr_xcen)
     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
