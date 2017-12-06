@@ -1154,7 +1154,13 @@ module mom_cap_mod
     enddo
     enddo
 
+#ifdef MOM5_CAP
     call ocean_model_data_get(Ocean_state, Ocean_sfc, 'ulon', ofld, isc, jsc)
+#endif
+
+#ifdef MOM6_CAP
+    call ocean_model_data_get(Ocean_state, Ocean_sfc, 'geoLonBu', ofld, isc, jsc)
+#endif
     write(tmpstr,*) subname//' ofld xu = ',minval(ofld),maxval(ofld)
     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
     call mpp_global_field(Ocean_sfc%domain, ofld, gfld)
@@ -1190,7 +1196,7 @@ module mom_cap_mod
 #endif
 
 #ifdef MOM6_CAP
-    call ocean_model_data_get(Ocean_state, Ocean_sfc, 'vlat', ofld, isc, jsc)
+    call ocean_model_data_get(Ocean_state, Ocean_sfc, 'geoLatBu', ofld, isc, jsc)
 #endif
 
     write(tmpstr,*) subname//' ofld yu = ',minval(ofld),maxval(ofld)
